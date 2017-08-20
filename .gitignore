@@ -1,0 +1,19 @@
+<<<<<<< HEAD
+*.o
+CMakeCache.txt
+CMakeFiles/*
+CMakeFiles
+cmake_install.cmake
+Makefile
+=======
+.vs
+3DES.opensdf
+3DES.sdf
+3DES.sln
+3DES/3DES.vcxproj
+3DES/3DES.vcxproj.filters
+3DES/3DES.vcxproj.user
+3DES/x64/
+x64/
+*.mp4
+>>>>>>> f4138f9d3079ce11c490be8154fc793b4d187adc
