@@ -16,13 +16,15 @@
 #include <caffe/util/io.hpp>
 #include <caffe/blob.hpp>
 
-#include "mCaffePredictor.hpp"
+#include "./include/mCaffePredictor.hpp"
 
 using namespace caffe;
 
 int main() {
-    LOG(INFO) << "cifar10 test" << std::endl;
-    Caffe::set_mode(Caffe::GPU);
-    Caffe::SetDevice(0);
+    mCaffePredictor predictor("./caffemodel/vnect_model.caffemodel", "./caffemodel/vnect_net.prototxt");
+    std::cout << "testing " << std::endl;
+    //std::cout << "test" << std::endl;
+    //cv::Mat img = cv::imread("./imgtest/truck10.png");
+    //std::vector<float> result = predictor.predict(img);
     return 0;
 }

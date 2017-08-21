@@ -1,4 +1,5 @@
 *.o
+caffemodel/*
 CMakeCache.txt
 CMakeFiles/*
 CMakeFiles

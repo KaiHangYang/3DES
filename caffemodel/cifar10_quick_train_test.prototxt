@@ -1,38 +1,9 @@
-name: "CIFAR10_quick"
-layer {
-  name: "cifar"
-  type: "Data"
-  top: "data"
-  top: "label"
-  include {
-    phase: TRAIN
-  }
-  transform_param {
-    mean_file: "examples/cifar10/mean.binaryproto"
-  }
-  data_param {
-    source: "examples/cifar10/cifar10_train_lmdb"
-    batch_size: 100
-    backend: LMDB
-  }
-}
-layer {
-  name: "cifar"
-  type: "Data"
-  top: "data"
-  top: "label"
-  include {
-    phase: TEST
-  }
-  transform_param {
-    mean_file: "examples/cifar10/mean.binaryproto"
-  }
-  data_param {
-    source: "examples/cifar10/cifar10_test_lmdb"
-    batch_size: 100
-    backend: LMDB
-  }
-}
+name: "cifar"
+input: "data"
+input_dim:1
+input_dim:3
+input_dim: 32
+input_dim: 32
 layer {
   name: "conv1"
   type: "Convolution"
@@ -202,21 +173,4 @@ layer {
       type: "constant"
     }
   }
-}
-layer {
-  name: "accuracy"
-  type: "Accuracy"
-  bottom: "ip2"
-  bottom: "label"
-  top: "accuracy"
-  include {
-    phase: TEST
-  }
-}
-layer {
-  name: "loss"
-  type: "SoftmaxWithLoss"
-  bottom: "ip2"
-  bottom: "label"
-  top: "loss"
 }

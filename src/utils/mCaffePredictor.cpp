@@ -16,7 +16,9 @@ mCaffePredictor::mCaffePredictor(const std::string &model_path, const std::strin
     _input_size = cv::Size(input_data->width(), input_data->height());
 
     /* Load the mean file */
-    setMean(mean_path);
+    if (mean_path != "") {
+        setMean(mean_path);
+    }
 }
 
 void mCaffePredictor::setMean(const std::string &mean_path) {
@@ -59,6 +61,51 @@ void mCaffePredictor::wrapInputLayer(std::vector<cv::Mat> * input_data) {
     }
 
 }
+void mCaffePredictor::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_data) {
+    /* conver the image to the size that fit for the net */
+    cv::Mat tmp;
+    if (img.channels() == 3 && _num_channel == 1) {
+        cv::cvtColor(img, tmp, cv::COLOR_BGR2GRAY);
+    }
+    else if (img.channels() == 4 && _num_channel == 1) {
+        cv::cvtColor(img, tmp, cv::COLOR_BGRA2GRAY);
+    }
+    else if (img.channels() == 4 && _num_channel == 3) {
+        cv::cvtColor(img, tmp, cv::COLOR_BGRA2BGR);
+    }
+    else if (img.channels() == 1 && _num_channel == 3) {
+        cv::cvtColor(img, tmp, cv::COLOR_GRAY2BGR);
+    }
+    else {
+        tmp = img;
+    }
+    
+    /* TODO:  This part of the image preprocess need to be changed  */
+    cv::Mat tmp_resized;
+    if (tmp.size() != _input_size) {
+        cv::resize(tmp, tmp_resized, _input_size);
+    }
+    else {
+        tmp_resized = tmp;
+    }
+    
+    cv::Mat tmp_float;
+
+    if (_num_channel == 3) {
+        tmp_resized.convertTo(tmp_float, CV_32FC3);
+    }
+    else {
+        tmp_resized.convertTo(tmp_float, CV_32FC1);
+    }
+
+    cv::Mat tmp_normalized;
+    cv::subtract(tmp_float, _mean, tmp_normalized);
+
+    cv::split(tmp_normalized, *input_data);
+
+    CHECK(reinterpret_cast<float *>(input_data->at(0).data) == _net->input_blobs()[0]->cpu_data()) << "Input channels are not wrapping the input layer of the network";
+
+}
 std::vector<float> mCaffePredictor::predict(const cv::Mat &img) {
     /* Reshape the net to fit for the input */
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
@@ -66,5 +113,17 @@ std::vector<float> mCaffePredictor::predict(const cv::Mat &img) {
     /* Forward all dimension change to all layers */
     _net->Reshape();
 
+    /* create a vector and put the pointer in the new input_layer to the it */
+    std::vector<cv::Mat> input_channels;
+    wrapInputLayer(&input_channels);
 
+    preprocess(img, &input_channels);
+    /* Layer pointer mapped and put the image data in it. Then forward */
+    _net->Forward();
+    /* Copy the data out */
+    caffe::Blob<float> * output_layer = _net->output_blobs()[0];
+    const float * begin = output_layer->cpu_data();
+    const float * end = begin + output_layer->channels(); /* Because the blob data format is (n, c, h, w) */
+
+    return std::vector<float>(begin, end);
 }

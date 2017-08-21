@@ -4,6 +4,8 @@
 #include <string>
 #include <caffe/caffe.hpp>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 /* The util to use caffe model to predict */
 class mCaffePredictor {
     caffe::shared_ptr<caffe::Net<float> > _net;
@@ -15,7 +17,7 @@ class mCaffePredictor {
     void wrapInputLayer(std::vector<cv::Mat> * input_data);
     void preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_data);
 public:
-    mCaffePredictor(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path);
+    mCaffePredictor(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path="");
     std::vector<float> predict(const cv::Mat & img);
 };
 
