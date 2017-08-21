@@ -1,31 +1,33 @@
-import os 
-import ycm_core 
-flags = [ 
-    '-std=c++11', 
-    '-O0', 
-    '-Werror', 
-    # '-Weverything', 
-    '-Wno-documentation', 
+import os
+import ycm_core
+flags = [
+    '-std=c++11',
+    '-O0',
+    '-Werror',
+    '-Weverything',
+    '-Wno-documentation',
     '-Wno-double-promotion',
-    '-Wno-deprecated-declarations', 
-    '-Wno-disabled-macro-expansion', 
-    '-Wno-float-equal', 
-    '-Wno-c++98-compat', 
-    '-Wno-c++98-compat-pedantic', 
-    '-Wno-global-constructors', 
-    '-Wno-exit-time-destructors', 
-    '-Wno-missing-prototypes', 
-    '-Wno-padded', 
+    '-Wno-deprecated-declarations',
+    '-Wno-disabled-macro-expansion',
+    '-Wno-float-equal',
+    '-Wno-c++98-compat',
+    '-Wno-c++98-compat-pedantic',
+    '-Wno-global-constructors',
+    '-Wno-exit-time-destructors',
+    '-Wno-missing-prototypes',
+    '-Wno-padded',
     '-Wno-old-style-cast',
     '-Wno-weak-vtables',
-    '-x', 
-    'c++', 
-    '-I', 
-    '.', 
-    '-isystem', 
-    '/usr/include/', 
+    '-x',
+    'c++',
     '-I',
-    './include/'
+    '.',
+    '-isystem',
+    '/usr/include/',
+    '-isystem',
+    '/usr/local/include',
+    '-I',
+    '/home/kaihang/Projects/3DES/include/'
     '-I',
     '/home/kaihang/SelfLibs/Caffe/caffe/build/install/include'
 ] 

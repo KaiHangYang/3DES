@@ -12,10 +12,10 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "mShader.h"
-#include "mCamera.h"
-#include "mDefs.h"
-#include "mMeshRender.h"
+#include "include/mShader.h"
+#include "include/mCamera.h"
+#include "include/mDefs.h"
+#include "include/mMeshRender.h"
 
 using namespace glm;
 
