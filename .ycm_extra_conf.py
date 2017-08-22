@@ -4,7 +4,7 @@ flags = [
     '-std=c++11',
     '-O0',
     '-Werror',
-    '-Weverything',
+    # '-Weverything',
     '-Wno-documentation',
     '-Wno-double-promotion',
     '-Wno-deprecated-declarations',

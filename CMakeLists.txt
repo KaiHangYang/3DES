@@ -53,7 +53,7 @@ ENDIF()
 INCLUDE_DIRECTORIES(${INCLUDE_DIRS})
 
 IF (IS_TEST)
-    ADD_EXECUTABLE(main test.cpp ./src/utils/mCaffePredictor.cpp)
+    ADD_EXECUTABLE(main test.cpp ./src/vnect/vnectUtils.cpp ./src/utils/mCaffePredictor.cpp)
     # 下面必须使用caffe包的LIBRARIES因为 这里可以满足caffe的所有依赖，如果手动添加链接的话会需要手动添加依赖库
     TARGET_LINK_LIBRARIES(main ${LINK_LIBS})
 ELSE()
