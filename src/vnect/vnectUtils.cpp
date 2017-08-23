@@ -6,8 +6,45 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
     _is_tracking = false;
     _box_size = cv::Size(0, 0);
     _crop_size = 368;
+    _pad_offset = std::vector<int>({0, 0});
     _crop_scale = 1.0;
+    _crop_rect = std::vector<int>({0, 0, _crop_size, _crop_size});
     _hm_factor = 8.0;
+    _is_first_frame = true;
+}
+std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
+    std::vector<int> result({0, 0});
+    if (!type) {
+        // 0 get the min
+        result[0] = 65536;
+        result[1] = 65536;
+        for (int i=0; i < joints_2d.size(); ++i) {
+            if (joints_2d.at(i)[0] < result[0]) {
+                result[0] = joints_2d.at(i)[0];
+            }
+            if (joints_2d.at(i)[1] < result[1]) {
+                result[1] = joints_2d.at(i)[1];
+            }
+        }
+
+        result[0] = static_cast<int>(_crop_rect[0] + result[0]/_crop_scale) - static_cast<int>(_pad_offset[0]/_crop_scale) - crop_offset;
+        result[1] = static_cast<int>(_crop_rect[1] + result[1]/_crop_scale) - static_cast<int>(_pad_offset[1]/_crop_scale) - crop_offset;
+
+    }
+    else {
+        // get the max
+        for (int i=0; i < joints_2d.size(); ++i) {
+            if (joints_2d.at(i)[0] > result[0]) {
+                result[0] = joints_2d.at(i)[0];
+            }
+            if (joints_2d.at(i)[1] > result[1]) {
+                result[1] = joints_2d.at(i)[1];
+            }
+        }
+        result[0] = static_cast<int>(_crop_rect[0] + result[0]/_crop_scale) - static_cast<int>(_pad_offset[0]/_crop_scale) + crop_offset;
+        result[1] = static_cast<int>(_crop_rect[1] + result[1]/_crop_scale) - static_cast<int>(_pad_offset[1]/_crop_scale) + crop_offset;
+    }
+    return result;
 }
 void mVNectUtils::wrapInputLayer(std::vector<cv::Mat> * input_data) {
     // Before call this function the net has been reshaped
@@ -41,14 +78,49 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
     
     if (!_is_tracking) {
         // the first frame
-        _box_size = cv::Size(img.size().width, img.size().height);
+        _box_size = cv::Size(tmp.size().width, tmp.size().height);
         _is_tracking = true;
     }
     else {
         _box_size = cv::Size(_crop_size, _crop_size);
         float crop_offset = static_cast<int>(40.0/_crop_scale);
-        // TODO the bbt need to be implement 
-        // Now I just do the firt frame predict
+        std::vector<int> min_crop = crop_pos(0, crop_offset);
+        std::vector<int> max_crop = crop_pos(1, crop_offset);
+        
+        std::vector<int> old_crop = _crop_rect;
+
+        _crop_rect[0] = std::max(min_crop[0], 0);
+        _crop_rect[1] = std::max(min_crop[1], 0);
+
+        _crop_rect[2] = std::min(max_crop[0], tmp.size().width) - _crop_rect[0];
+        _crop_rect[3] = std::min(max_crop[1], tmp.size().height) - _crop_rect[1];
+        
+        if (_is_first_frame) {
+            float mu = 0.8;
+            for (int i=0; i < 4; ++i) {
+                _crop_rect[i] = (1-mu) * _crop_rect[i] + mu * old_crop[i];
+            }
+            _is_first_frame = false;
+        }
+
+        cv::Rect crop_rect(_crop_rect[0], _crop_rect[1], _crop_rect[2], _crop_rect[3]);
+        tmp = tmp(crop_rect);
+        cv::Size tmp_size = tmp.size();
+        _crop_scale = (_crop_size - 2.0) / static_cast<float>(std::max(tmp_size.width, tmp_size.height));
+        cv::resize(tmp, tmp, cv::Size(0, 0), _crop_scale, _crop_scale);
+        
+        if (tmp_size.width > tmp_size.height) {
+            _pad_offset[0] = 0;
+            _pad_offset[1] = (_crop_size - tmp_size.height)/2.0;
+        }
+        else {
+            _pad_offset[1] = 0;
+            _pad_offset[0] = (_crop_size - tmp_size.width)/2.0;
+        }
+        tmp = padImage(tmp,_box_size);
+        // TODO You need to changed the net work reshape place here.
+        // And the image size changed here, you need to change to relatived 
+        // variables.
     }
 
     // Once the crop is known, process the img
@@ -104,6 +176,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
     // Here according to the demo, the image is resized to [448, 848]
+    // TODO: Change to only reshape the net once.
     cv::resize(img, tmp, cv::Size(424, 224));
     _input_size = tmp.size();
     if (_is_tracking) {
@@ -205,7 +278,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         ymaps.push_back(ymap);
         zmaps.push_back(zmap);
     }
-    // them all the heatmaps is ready for calculate the 2D and 3D location
+    // then all the heatmaps is ready for calculate the 2D and 3D location
     // clear the joints stored in the vector
     joints_2d.clear();
     joints_3d.clear();
@@ -229,7 +302,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         joints_2d.push_back(p2);
         joints_3d.push_back(p3);
     }
-    // TODO The 3D position seem a little strange
+    // Do this according to the demo code
     for (int i=0; i < o_channels; ++i) {
         joints_3d[i][0] -= joints_3d[14][0];
         joints_3d[i][1] -= joints_3d[14][1];

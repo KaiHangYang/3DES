@@ -30,6 +30,8 @@ void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos) {
                     std::cout << "out of range" <<std::endl;
                     continue;
                 }
+                // TODO:Here you need to get to know how the oepncv store data and how to 
+                //      access the data in the mat.
                 img.at<float>(pos[i][0]+j, pos[i][1]+k, 0) = 1;
                 //img.at<char>(pos[i][0]+j, pos[i][1]+k, 2) = 1;
             }
