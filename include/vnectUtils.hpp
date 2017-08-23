@@ -12,10 +12,13 @@ private:
     cv::Size _box_size;   
     int _crop_size;
     float _crop_scale;
-
+    // The scale of the input and the output. Now it's 8.
+    float _hm_factor; 
+    std::vector<std::vector<int> > joints_2d;
+    std::vector<std::vector<int> > joints_3d; 
     cv::Mat padImage(const cv::Mat &img, cv::Size box_size);
 public:
     mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path="");
-    std::vector<float> predict(const cv::Mat &img);
+    std::vector<std::vector<int> > predict(const cv::Mat &img);
 };
 #endif
