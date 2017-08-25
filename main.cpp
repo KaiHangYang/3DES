@@ -17,6 +17,11 @@
 #include "include/mDefs.h"
 #include "include/mMeshRender.h"
 
+// VNect test
+#include "include/vnectJointsInfo.hpp"
+#include "include/vnectUtils.hpp"
+
+
 using namespace glm;
 
 

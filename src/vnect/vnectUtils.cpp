@@ -27,8 +27,8 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
             }
         }
 
-        result[0] = static_cast<int>(_crop_rect[0] + result[0]/_crop_scale) - static_cast<int>(_pad_offset[0]/_crop_scale) - crop_offset;
-        result[1] = static_cast<int>(_crop_rect[1] + result[1]/_crop_scale) - static_cast<int>(_pad_offset[1]/_crop_scale) - crop_offset;
+        result[0] = static_cast<int>(result[0]) - crop_offset;
+        result[1] = static_cast<int>(result[1]) - crop_offset;
 
     }
     else {
@@ -41,8 +41,8 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
                 result[1] = joints_2d.at(i)[1];
             }
         }
-        result[0] = static_cast<int>(_crop_rect[0] + result[0]/_crop_scale) - static_cast<int>(_pad_offset[0]/_crop_scale) + crop_offset;
-        result[1] = static_cast<int>(_crop_rect[1] + result[1]/_crop_scale) - static_cast<int>(_pad_offset[1]/_crop_scale) + crop_offset;
+        result[0] = static_cast<int>(result[0]) + crop_offset;
+        result[1] = static_cast<int>(result[1]) + crop_offset;
     }
     return result;
 }
@@ -83,18 +83,17 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
     }
     else {
         _box_size = cv::Size(_crop_size, _crop_size);
-        float crop_offset = static_cast<int>(40.0/_crop_scale);
+        //float crop_offset = static_cast<int>(40.0/_crop_scale);
+        float crop_offset = static_cast<int>(40.0);
         std::vector<int> min_crop = crop_pos(0, crop_offset);
         std::vector<int> max_crop = crop_pos(1, crop_offset);
         
         std::vector<int> old_crop = _crop_rect;
+        //_crop_rect[0] = std::max(min_crop[0], 0);
+        //_crop_rect[1] = std::max(min_crop[1], 0);
 
-        _crop_rect[0] = std::max(min_crop[0], 0);
-        _crop_rect[1] = std::max(min_crop[1], 0);
-
-        _crop_rect[2] = std::min(max_crop[0], tmp.size().width) - _crop_rect[0];
-        _crop_rect[3] = std::min(max_crop[1], tmp.size().height) - _crop_rect[1];
-        
+        //_crop_rect[2] = std::min(max_crop[0], tmp.size().width) - _crop_rect[0];
+        //_crop_rect[3] = std::min(max_crop[1], tmp.size().height) - _crop_rect[1];
         if (_is_first_frame) {
             float mu = 0.8;
             for (int i=0; i < 4; ++i) {
@@ -102,13 +101,20 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
             }
             _is_first_frame = false;
         }
+        _crop_rect[0] = std::max(min_crop[1], 0);
+        _crop_rect[1] = std::max(min_crop[0], 0);
+
+        _crop_rect[2] = std::min(max_crop[1], tmp.size().width) - _crop_rect[0];
+        _crop_rect[3] = std::min(max_crop[0], tmp.size().height) - _crop_rect[1];
+
 
         cv::Rect crop_rect(_crop_rect[0], _crop_rect[1], _crop_rect[2], _crop_rect[3]);
         tmp = tmp(crop_rect);
+
         cv::Size tmp_size = tmp.size();
         _crop_scale = (_crop_size - 2.0) / static_cast<float>(std::max(tmp_size.width, tmp_size.height));
         cv::resize(tmp, tmp, cv::Size(0, 0), _crop_scale, _crop_scale);
-        
+        tmp_size = tmp.size();
         if (tmp_size.width > tmp_size.height) {
             _pad_offset[0] = 0;
             _pad_offset[1] = (_crop_size - tmp_size.height)/2.0;
@@ -117,7 +123,11 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
             _pad_offset[1] = 0;
             _pad_offset[0] = (_crop_size - tmp_size.width)/2.0;
         }
-        tmp = padImage(tmp,_box_size);
+        tmp = padImage(tmp, _box_size);
+        
+        cv::imshow("crop img", tmp);
+        cv::waitKey();
+
         // TODO You need to changed the net work reshape place here.
         // And the image size changed here, you need to change to relatived 
         // variables.
@@ -128,6 +138,7 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
     std::vector<cv::Mat> data;
     cv::Mat tmp_resize;
     // TODO:the input_size must be updated after the net is reshaped
+    cv::Size hehe = tmp.size();
     if (tmp.size() != _input_size) {
         cv::resize(tmp, tmp_resize, _input_size);
     }
@@ -175,18 +186,18 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
+    cv::resize(img, tmp, cv::Size(424, 224));
     // Here according to the demo, the image is resized to [448, 848]
     // TODO: Change to only reshape the net once.
-    cv::resize(img, tmp, cv::Size(424, 224));
-    _input_size = tmp.size();
+    
     if (_is_tracking) {
         // In tracking mode, the number of scales is 2, I don't know why, 
-        // but this number can be changed.
+        _input_size = cv::Size(_crop_size, _crop_size);
         _scales.clear();
         for (int i=0; i < 2; ++i) {
             _scales.push_back(1.0 - 0.3 * static_cast<float>(i));
         }
-        input_layer->Reshape(2, static_cast<int>(_num_channel), tmp.size().height, tmp.size().width);
+        input_layer->Reshape(2, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
     }
     else {
         // The multi-scales in the paper means, we need to scale the image to multi scale(eg 1.0, 0.8, 0.6). Then forward 
@@ -197,7 +208,10 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         for (int i=0; i < 3; ++i) {
             _scales.push_back(1.0 - 0.2 * static_cast<float>(i));
         }
-        input_layer->Reshape(3, static_cast<int>(_num_channel), tmp.size().height, tmp.size().width);
+        _input_size = tmp.size();    // but this number can be changed.
+        input_layer->Reshape(3, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
+        
+        // when tracking the input_size is the crop_size
     }
     
     _net->Reshape();
@@ -218,6 +232,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     int o_channels = output_layer[0]->channels();
     int o_num = output_layer[0]->num();
     cv::Size hm_size = cv::Size(o_width, o_height);
+    std::cout << "hm_size:"<< hm_size.width << "," << hm_size.height << std::endl;
     // Get all the result, result[0] -> heatmap, result[1] -> x_location_map, result[2] -> y_location_map, result[3] -> z_location_map
     for (int i=0; i < output_layer.size(); ++i) {
         const float * begin = output_layer[i]->cpu_data();
@@ -280,6 +295,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     }
     // then all the heatmaps is ready for calculate the 2D and 3D location
     // clear the joints stored in the vector
+    // Here cause there is a bb, I need to change the location to the previous picture
     joints_2d.clear();
     joints_3d.clear();
     for (int i=0; i < o_channels; ++i) {
@@ -291,16 +307,20 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         //cv::imshow("testaa", hm);
         //cv::waitKey();
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
         int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
         int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
-        p3[0] = 100 * xmaps[i].at<float>(posx, posy);
-        p3[1] = 100 * ymaps[i].at<float>(posx, posy);
-        p3[2] = 100 * zmaps[i].at<float>(posx, posy);
-        //std::cout << "pos3d:" << p3[0] << ',' << p3[1] << ", " << p3[2]<< std::endl;
+        p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
+        p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
+        p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
+        // change them here
+        p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
+        p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
+
         joints_2d.push_back(p2);
         joints_3d.push_back(p3);
+
+        std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
     for (int i=0; i < o_channels; ++i) {
@@ -310,6 +330,6 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         std::cout << "pos3d:" << joints_3d[i][0] << ',' << joints_3d[i][1] << ", " << joints_3d[i][2]<< std::endl;
     }
 
-    
-    return joints_2d;
+    // return the 3D points directory
+    return joints_3d;
 }
