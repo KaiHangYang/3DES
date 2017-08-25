@@ -1,4 +1,4 @@
-#include "mCamera.h"
+#include "../../include/mCamera.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <GL/glew.h>
@@ -10,47 +10,52 @@ mCamera::~mCamera() {
     glBindVertexArray(0);
     glDeleteVertexArrays(1, &VAO);
 }
-mCamera::mCamera(int wndWidth, int wndHeight, mShader *camShader) {
+mCamera::mCamera(int wndWidth, int wndHeight, mShader *camShader, bool isOpenCamera) {
     this->wndWidth = wndWidth;
     this->wndHeight = wndHeight;
     this->camShader = camShader;
+    this->isOpenCamera = isOpenCamera;
     glGenVertexArrays(1, &VAO);
-
-    m_camera = cv::VideoCapture(0);
+    
+    if (isOpenCamera) {
+        m_camera = cv::VideoCapture(0);
+    }
 }
 bool mCamera::init() {
     glBindVertexArray(VAO);
-    if (!m_camera.isOpened()) {
+    if (isOpenCamera && !m_camera.isOpened()) {
         std::cout << "ERROR: Camera init failed!" << std::endl;
         return false;
     }
-    m_camera.set(CV_CAP_PROP_FRAME_WIDTH, wndWidth);
-    m_camera.set(CV_CAP_PROP_FRAME_HEIGHT, wndHeight);
+    if (isOpenCamera) {
+        m_camera.set(CV_CAP_PROP_FRAME_WIDTH, wndWidth);
+        m_camera.set(CV_CAP_PROP_FRAME_HEIGHT, wndHeight);
+    }
     initGLFrame();
     glBindVertexArray(0);
     return true;
 }
 
 void mCamera::initGLFrame() {
-
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+    float vof = 45.0f;
+    glm::mat4 projection = glm::perspective(glm::radians(vof), ratio_w / ratio_h, 0.1f, 100.0f);
     // camera matrix
     glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(4.14, 4.14, 1));
+    model = glm::scale(model, glm::vec3(15*glm::tan(vof/2) / (ratio_h/2), 15*glm::tan(vof/2) / (ratio_h/2), 1));
     // model matrix
     MVP = projection*view*model;
 
     textureID = genTexture();
 
     static const GLfloat g_vertex_buffer_data[] = {
-        -2.0f, 1.5f, -10.0f,
-        -2.0f, -1.5f, -10.0f,
-        2.0f, -1.5f, -10.0f,
-        2.0f, -1.5f, -10.0f,
-        2.0f, 1.5f, -10.0f,
-        -2.0f, 1.5f, -10.0f
+        -ratio_w/2, ratio_h/2, -10.0f,
+        -ratio_w/2, -ratio_h/2, -10.0f,
+        ratio_w/2, -ratio_h/2, -10.0f,
+        ratio_w/2, -ratio_h/2, -10.0f,
+        ratio_w/2, ratio_h/2, -10.0f,
+        -ratio_w/2, ratio_h/2, -10.0f
     };
     static const GLfloat uv_data[] = {
         1.0f, 1.0f,
@@ -85,10 +90,14 @@ GLuint mCamera::genTexture() {
 void mCamera::setTextureData(cv::Mat & frame) {
     glBindTexture(GL_TEXTURE_2D, textureID);
     cv::flip(frame, frame, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wndWidth, wndHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, frame.ptr());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wndWidth, wndHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, frame.ptr(0));
     glGenerateMipmap(GL_TEXTURE_2D);
 }
 void mCamera::drawFrame() {
+    if (!isOpenCamera) {
+        std::cout << "ERROR: Camera is not opened!" << std::endl;
+        return;
+    }
     cv::Mat frame;
     glBindVertexArray(VAO);
 
@@ -98,6 +107,26 @@ void mCamera::drawFrame() {
         std::cout << "ERROR:mCamera->drawFrame: frame read failed!" << std::endl;
         return;
     }
+    setTextureData(frame);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    camShader->setVal("myTextureSampler", 0);
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6); // 第三个参数的含义是 顶点的数目
+
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glBindVertexArray(0);
+}
+void mCamera::drawFrame(cv::Mat &frame) {
+    glBindVertexArray(VAO);
+
+    camShader->use();
+    camShader->setVal("MVP", MVP);
     setTextureData(frame);
 
     glActiveTexture(GL_TEXTURE0);

@@ -44,6 +44,7 @@ double curX, curY;
 glm::mat4 rotateMat = glm::mat4(1.0);
 glm::mat4 model = glm::mat4(1.0);
 
+void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos);
 void mouse_button_callback(GLFWwindow * window, int button, int action, int mods);
 
 
@@ -53,6 +54,13 @@ int main(void) {
     // init glfw 
     GLFWwindow * window;
     
+    cv::VideoCapture m_cam = cv::VideoCapture(0);
+    cv::Mat frame;
+    m_cam.set(CV_CAP_PROP_FRAME_WIDTH, wndWidth);
+    m_cam.set(CV_CAP_PROP_FRAME_HEIGHT, wndHeight);
+
+    mVNectUtils predictor("./caffemodel/vnect_model.caffemodel", "./caffemodel/vnect_net.prototxt");
+
     if ((window = InitWindow()) == nullptr) {
         system("pause");
         return -1;
@@ -62,12 +70,12 @@ int main(void) {
     mShader camShader("/home/kaihang/Projects/3DES/shader/v.shader", "/home/kaihang/Projects/3DES/shader/f.shader");
     mShader objShader("/home/kaihang/Projects/3DES/shader/v2.shader", "/home/kaihang/Projects/3DES/shader/f2.shader");
 
-    mCamera mcam(wndWidth, wndHeight, &camShader);
+    mCamera mcam(wndWidth, wndHeight, &camShader, false);
     if (false == mcam.init()) {
         system("pause");
         return -1;
     }
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), ratio_w / ratio_h, 0.1f, 100.0f);
     glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     //model = glm::mat4(1.0f);
     //model = glm::scale(model, glm::vec3(4, 4, 4));
@@ -111,61 +119,70 @@ int main(void) {
                                         13, 14
                                                 });
 
+    std::vector<std::vector<int> > tmp;
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        mcam.drawFrame();
-        
-        
-        glm::mat4 curModel;
-        if (isMousePressed && (initX != curX || initY != curY)) {
-            float tmpZ2;
-            float tmpinitX = ((float)(wndWidth - initX - 1) / (float)wndHeight - 0.5)*2;
-            float tmpinitY = ((float)initY / (float)wndHeight - 0.5)*2;
-            tmpZ2 = 1 - tmpinitX*tmpinitX - tmpinitY*tmpinitY;
-            glm::vec3 initVec(1.0);
+        if (!m_cam.read(frame)) {
+            continue;
+        }
 
-            if (tmpZ2 < 0) {
-                float tLen = sqrt(tmpinitY*tmpinitY + tmpinitX*tmpinitX);
-                glm::vec4 from(tmpinitX / tLen, tmpinitY / tLen, 0, 1.0);
-                glm::mat4 rmat = glm::rotate(glm::mat4(1.0), 1 - tLen, glm::cross(glm::vec3(tmpinitX, tmpinitY, 0), glm::vec3(0, 0, 1)));
+        tmp = predictor.predict(frame);
+        
+        drawPoint(frame, tmp);
+
+        mcam.drawFrame(frame);
+        
+        
+        //glm::mat4 curModel;
+        //if (isMousePressed && (initX != curX || initY != curY)) {
+            //float tmpZ2;
+            //float tmpinitX = ((float)(wndWidth - initX - 1) / (float)wndHeight - 0.5)*2;
+            //float tmpinitY = ((float)initY / (float)wndHeight - 0.5)*2;
+            //tmpZ2 = 1 - tmpinitX*tmpinitX - tmpinitY*tmpinitY;
+            //glm::vec3 initVec(1.0);
+
+            //if (tmpZ2 < 0) {
+                //float tLen = sqrt(tmpinitY*tmpinitY + tmpinitX*tmpinitX);
+                //glm::vec4 from(tmpinitX / tLen, tmpinitY / tLen, 0, 1.0);
+                //glm::mat4 rmat = glm::rotate(glm::mat4(1.0), 1 - tLen, glm::cross(glm::vec3(tmpinitX, tmpinitY, 0), glm::vec3(0, 0, 1)));
                 
-                glm::vec4 tmpm = rmat* from;
-                initVec.x = tmpm.x;
-                initVec.y = tmpm.y;
-                initVec.z = tmpm.z;
-            }
-            else {
-                initVec = glm::normalize(glm::vec3(tmpinitX, tmpinitY, sqrt(tmpZ2)));
-            }
+                //glm::vec4 tmpm = rmat* from;
+                //initVec.x = tmpm.x;
+                //initVec.y = tmpm.y;
+                //initVec.z = tmpm.z;
+            //}
+            //else {
+                //initVec = glm::normalize(glm::vec3(tmpinitX, tmpinitY, sqrt(tmpZ2)));
+            //}
             
-            float tmpcurX = ((float)(wndWidth - curX - 1) / (float)wndHeight - 0.5)*2;
-            float tmpcurY = ((float)curY / (float)wndHeight - 0.5)*2;
-            glm::vec3 curVec;
+            //float tmpcurX = ((float)(wndWidth - curX - 1) / (float)wndHeight - 0.5)*2;
+            //float tmpcurY = ((float)curY / (float)wndHeight - 0.5)*2;
+            //glm::vec3 curVec;
 
-            tmpZ2 = 1 - tmpcurX*tmpcurX - tmpcurY*tmpcurY;
+            //tmpZ2 = 1 - tmpcurX*tmpcurX - tmpcurY*tmpcurY;
 
-            if (tmpZ2 < 0) {
-                float tLen = sqrt(tmpcurY*tmpcurY + tmpcurX*tmpcurX);
-                glm::vec4 from(tmpcurX / tLen, tmpcurY / tLen, 0, 1.0);
-                glm::mat4 rmat = glm::rotate(glm::mat4(1.0), 1 - tLen, glm::cross(glm::vec3(tmpcurX, tmpcurY, 0), glm::vec3(0, 0, 1)));
+            //if (tmpZ2 < 0) {
+                //float tLen = sqrt(tmpcurY*tmpcurY + tmpcurX*tmpcurX);
+                //glm::vec4 from(tmpcurX / tLen, tmpcurY / tLen, 0, 1.0);
+                //glm::mat4 rmat = glm::rotate(glm::mat4(1.0), 1 - tLen, glm::cross(glm::vec3(tmpcurX, tmpcurY, 0), glm::vec3(0, 0, 1)));
 
-                glm::vec4 tmpm = rmat* from;
-                curVec.x = tmpm.x;
-                curVec.y = tmpm.y;
-                curVec.z = tmpm.z;
-            }
-            else {
-                curVec = glm::normalize(glm::vec3(tmpcurX, tmpcurY, sqrt(tmpZ2)));
-            }
+                //glm::vec4 tmpm = rmat* from;
+                //curVec.x = tmpm.x;
+                //curVec.y = tmpm.y;
+                //curVec.z = tmpm.z;
+            //}
+            //else {
+                //curVec = glm::normalize(glm::vec3(tmpcurX, tmpcurY, sqrt(tmpZ2)));
+            //}
             
-            rotateMat = glm::rotate(glm::mat4(1.0), glm::acos(glm::dot(initVec, curVec)), glm::cross(curVec, initVec));
+            //rotateMat = glm::rotate(glm::mat4(1.0), glm::acos(glm::dot(initVec, curVec)), glm::cross(curVec, initVec));
 
-            curModel = rotateMat * model;
-        }
-        else {
-            curModel = model;
-        }
-        meshes.render(vertexs, indics, curModel);
+            //curModel = rotateMat * model;
+        //}
+        //else {
+            //curModel = model;
+        //}
+        //meshes.render(vertexs, indics, curModel);
         
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -250,4 +267,25 @@ void mouse_move_callback(GLFWwindow * window, double x, double y) {
     if (isMousePressed) {
         std::cout << "cursor is at (" << curX << ", " << curY << ")" << std::endl;
     }
+}
+void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos) {
+    for (int i=0; i < pos.size(); ++i) {
+
+        int x = pos[i][0];
+        int y = pos[i][1];
+        for (int j=-2; j < 3; ++j) {
+            for (int k=-2; k < 3; ++k) {
+                if (x+j < 0 || x+j >= img.size().height || y+k >= img.size().width || y+k < 0) {
+                    std::cout << "out of range" <<std::endl;
+                    continue;
+                }
+                // TODO:Here you need to get to know how the oepncv store data and how to 
+                //      access the data in the mat.
+                img.at<float>(pos[i][0]+j, pos[i][1]+k, 0) = 1;
+                //img.at<char>(pos[i][0]+j, pos[i][1]+k, 2) = 1;
+            }
+        }
+        
+    }
+
 }

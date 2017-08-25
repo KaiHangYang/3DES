@@ -124,10 +124,6 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
             _pad_offset[0] = (_crop_size - tmp_size.width)/2.0;
         }
         tmp = padImage(tmp, _box_size);
-        
-        cv::imshow("crop img", tmp);
-        cv::waitKey();
-
         // TODO You need to changed the net work reshape place here.
         // And the image size changed here, you need to change to relatived 
         // variables.
@@ -186,7 +182,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
-    cv::resize(img, tmp, cv::Size(424, 224));
+    cv::resize(img, tmp, cv::Size(640, 360));
     // Here according to the demo, the image is resized to [448, 848]
     // TODO: Change to only reshape the net once.
     
@@ -331,5 +327,5 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
     }
 
     // return the 3D points directory
-    return joints_3d;
+    return joints_2d;
 }

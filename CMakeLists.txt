@@ -55,12 +55,14 @@ ENDIF()
 INCLUDE_DIRECTORIES(${INCLUDE_DIRS})
 
 IF (IS_TEST)
-    ADD_EXECUTABLE(main test.cpp ./src/vnect/vnectUtils.cpp ./src/utils/mCaffePredictor.cpp)
+    ADD_SUBDIRECTORY(src/vnect)
+    ADD_EXECUTABLE(main test.cpp)
     # 下面必须使用caffe包的LIBRARIES因为 这里可以满足caffe的所有依赖，如果手动添加链接的话会需要手动添加依赖库
-    TARGET_LINK_LIBRARIES(main ${LINK_LIBS})
+    TARGET_LINK_LIBRARIES(main vnect ${LINK_LIBS})
 ELSE()
     # 这个cmake 是真的神奇 有时间需要好好看看
     ADD_SUBDIRECTORY(src/utils)
+    ADD_SUBDIRECTORY(src/vnect)
     ADD_EXECUTABLE(main main.cpp)
-    TARGET_LINK_LIBRARIES(main utils ${LINK_LIBS})
+    TARGET_LINK_LIBRARIES(main utils vnect ${LINK_LIBS})
 ENDIF()
