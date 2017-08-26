@@ -38,12 +38,14 @@ bool mCamera::init() {
 
 void mCamera::initGLFrame() {
     float vof = 45.0f;
+    float scale_size = 15*glm::tan(glm::radians(vof/2))/(ratio_h/2);
     glm::mat4 projection = glm::perspective(glm::radians(vof), ratio_w / ratio_h, 0.1f, 100.0f);
     // camera matrix
     glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(15*glm::tan(vof/2) / (ratio_h/2), 15*glm::tan(vof/2) / (ratio_h/2), 1));
+
+    model = glm::scale(model, glm::vec3(scale_size, scale_size,  1));
     // model matrix
     MVP = projection*view*model;
 

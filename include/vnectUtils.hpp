@@ -24,6 +24,6 @@ private:
     std::vector<int> crop_pos(bool type, int crop_offset=0);
 public:
     mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path="");
-    std::vector<std::vector<int> > predict(const cv::Mat &img);
+    std::vector<std::vector<int> > predict(const cv::Mat &img, std::vector<std::vector<int> > &joints3d);
 };
 #endif

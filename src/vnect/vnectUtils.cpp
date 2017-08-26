@@ -1,6 +1,7 @@
 #include "../../include/vnectUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
 #include <algorithm>
+#include "../../include/mDefs.h"
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -178,11 +179,12 @@ cv::Mat mVNectUtils::padImage(const cv::Mat &img, cv::Size box_size) {
     img.copyTo(dst(rect));
     return dst;
 }
-std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
+std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vector<std::vector<int> > & joints3d) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
-    cv::resize(img, tmp, cv::Size(640, 360));
+    
+    cv::resize(img, tmp, cv::Size(vnect_resize_width, vnect_resize_height));
     // Here according to the demo, the image is resized to [448, 848]
     // TODO: Change to only reshape the net once.
     
@@ -316,16 +318,16 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img) {
         joints_2d.push_back(p2);
         joints_3d.push_back(p3);
 
-        std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
+        //std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
     for (int i=0; i < o_channels; ++i) {
         joints_3d[i][0] -= joints_3d[14][0];
         joints_3d[i][1] -= joints_3d[14][1];
         joints_3d[i][2] -= joints_3d[14][2];
-        std::cout << "pos3d:" << joints_3d[i][0] << ',' << joints_3d[i][1] << ", " << joints_3d[i][2]<< std::endl;
     }
 
     // return the 3D points directory
+    joints3d = joints_3d;
     return joints_2d;
 }
