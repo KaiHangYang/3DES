@@ -130,72 +130,6 @@ int main(void) {
         drawPoint(frame, tmp);
         cv::flip(frame, frame, 1);
         mcam.drawFrame(frame);
-        if (getchar()) {
-            int p1, p2;
-            // calculate the bone length
-            p1 = 14;
-            p2 = 8; // 0
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 9;
-            p2 = 8; // 1
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 9;
-            p2 = 10; // 2
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 10;
-            p2 = 19; // 3
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 14;
-            p2 = 11; // 4
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 11;
-            p2 = 12; // 5
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 12;
-            p2 = 13; // 6
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 13;
-            p2 = 20; // 7
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 14;
-            p2 = 15; // 8
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 1;
-            p2 = 15; // 9
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 1;
-            p2 = 2; // 10
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 2;
-            p2 = 3; // 11
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 3;
-            p2 = 4; // 12
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 4;
-            p2 = 17; // 13
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 1;
-            p2 = 5; // 14
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 5;
-            p2 = 6; // 15
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 6;
-            p2 = 7; // 16
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 7;
-            p2 = 18; // 17
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 1;
-            p2 = 16; // 18
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            p1 = 16;
-            p2 = 0; // 19
-            std::cout << std::sqrt(std::pow(vertexs[3 * p1] - vertexs[3 * p2], 2) + std::pow(vertexs[3 * p1 + 1] - vertexs[3 * p2 + 1], 2) + std::pow(vertexs[3 * p1 + 2] - vertexs[3 * p2 + 2], 2)) << ", ";
-            std::cout << std::endl;
-        }
-
         glm::mat4 curModel;
         if (isMousePressed && (initX != curX || initY != curY)) {
             float tmpZ2;
@@ -353,7 +287,7 @@ void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos) {
 }
 void normalize_3d(std::vector<std::vector<int> > & joints3d, std::vector<float> & result) {
     result.clear();
-    int scale_size = 1;
+    int scale_size = 4;
     for (int i=0; i < joints3d.size(); ++i) {
         // here I need to normalize them
         //
