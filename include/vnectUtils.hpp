@@ -2,11 +2,16 @@
 #define VNECT_UTILS
 #include "mCaffePredictor.hpp"
 
+// According to the paper, I got that the image is 
+// represented by joint angle \theta and camera location d
+// I will maintain a bone length array. 
+// The length is 3D length  
 class mVNectUtils: public mCaffePredictor {
 protected:
     virtual void preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_data);
     virtual void wrapInputLayer(std::vector<cv::Mat> * input_data);
 private:
+    double _time_stamp; // used for filter
     bool _is_tracking;
     std::vector<float> _scales;
     cv::Size _box_size; 

@@ -2,6 +2,7 @@
 #include "../../include/vnectJointsInfo.hpp"
 #include <algorithm>
 #include "../../include/mDefs.h"
+#include "../../include/oneEuro.hpp"
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -12,6 +13,7 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
     _crop_rect = std::vector<int>({0, 0, _crop_size, _crop_size});
     _hm_factor = 8.0;
     _is_first_frame = true;
+    _time_stamp = 0;
 }
 std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
     std::vector<int> result({0, 0});
@@ -183,6 +185,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
+    one_euro_filter<> mFilter(10, 1, 1, 1);
     
     cv::resize(img, tmp, cv::Size(vnect_resize_width, vnect_resize_height));
     // Here according to the demo, the image is resized to [448, 848]
@@ -190,24 +193,27 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     
     if (_is_tracking) {
         // In tracking mode, the number of scales is 2, I don't know why, 
+        int scale_size = 2;
         _input_size = cv::Size(_crop_size, _crop_size);
         _scales.clear();
-        for (int i=0; i < 2; ++i) {
+        for (int i=0; i < scale_size; ++i) {
             _scales.push_back(1.0 - 0.3 * static_cast<float>(i));
         }
-        input_layer->Reshape(2, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
+        input_layer->Reshape(scale_size, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
     }
     else {
         // The multi-scales in the paper means, we need to scale the image to multi scale(eg 1.0, 0.8, 0.6). Then forward 
         // to get the average of the results of all scales.
         // The implement in the demo is 3 scales. Here my gpu's memory is not 
         // enough, so I use one scale to test.
+        int scale_size = 3;
+        _time_stamp = 0;
         _scales.clear();
-        for (int i=0; i < 3; ++i) {
+        for (int i=0; i < scale_size; ++i) {
             _scales.push_back(1.0 - 0.2 * static_cast<float>(i));
         }
         _input_size = tmp.size();    // but this number can be changed.
-        input_layer->Reshape(3, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
+        input_layer->Reshape(scale_size, static_cast<int>(_num_channel), _input_size.height, _input_size.width);
         
         // when tracking the input_size is the crop_size
     }
@@ -230,7 +236,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     int o_channels = output_layer[0]->channels();
     int o_num = output_layer[0]->num();
     cv::Size hm_size = cv::Size(o_width, o_height);
-    std::cout << "hm_size:"<< hm_size.width << "," << hm_size.height << std::endl;
+    //std::cout << "hm_size:"<< hm_size.width << "," << hm_size.height << std::endl;
     // Get all the result, result[0] -> heatmap, result[1] -> x_location_map, result[2] -> y_location_map, result[3] -> z_location_map
     for (int i=0; i < output_layer.size(); ++i) {
         const float * begin = output_layer[i]->cpu_data();
@@ -305,8 +311,11 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
         //cv::imshow("testaa", hm);
         //cv::waitKey();
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
         p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
         p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
@@ -329,5 +338,8 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
 
     // return the 3D points directory
     joints3d = joints_3d;
+
+    // change the _time_stamp;
+    _time_stamp += 1.0/10;
     return joints_2d;
 }
