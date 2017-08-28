@@ -45,7 +45,7 @@ glm::mat4 model = glm::mat4(1.0);
 
 void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos);
 void mouse_button_callback(GLFWwindow * window, int button, int action, int mods);
-void normalize_3d(std::vector<std::vector<int> > & joints3d, std::vector<float> & vertexs);
+void joints_scale_3d(std::vector<std::vector<double> > & joints3d, std::vector<float> & result);
 void mouse_move_callback(GLFWwindow * window, double x, double y);
 
 int main(void) {
@@ -118,7 +118,8 @@ int main(void) {
                                         13, 14
                                         });
 
-    std::vector<std::vector<int> > tmp, tmp3d;
+    std::vector<std::vector<int> > tmp;
+    std::vector<std::vector<double>> tmp3d;
     indics = joint_indics;
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -126,7 +127,7 @@ int main(void) {
             continue;
         }
         tmp = predictor.predict(frame, tmp3d);
-        normalize_3d(tmp3d, vertexs);
+        joints_scale_3d(tmp3d, vertexs);
         drawPoint(frame, tmp);
         cv::flip(frame, frame, 1);
         mcam.drawFrame(frame);
@@ -154,14 +155,11 @@ int main(void) {
             float tmpcurX = ((float)(wndWidth - curX - 1) / (float)wndHeight - 0.5)*2;
             float tmpcurY = ((float)curY / (float)wndHeight - 0.5)*2;
             glm::vec3 curVec;
-
             tmpZ2 = 1 - tmpcurX*tmpcurX - tmpcurY*tmpcurY;
-
             if (tmpZ2 < 0) {
                 float tLen = sqrt(tmpcurY*tmpcurY + tmpcurX*tmpcurX);
                 glm::vec4 from(tmpcurX / tLen, tmpcurY / tLen, 0, 1.0);
                 glm::mat4 rmat = glm::rotate(glm::mat4(1.0), 1 - tLen, glm::cross(glm::vec3(tmpcurX, tmpcurY, 0), glm::vec3(0, 0, 1)));
-
                 glm::vec4 tmpm = rmat* from;
                 curVec.x = tmpm.x;
                 curVec.y = tmpm.y;
@@ -172,7 +170,6 @@ int main(void) {
             }
             
             rotateMat = glm::rotate(glm::mat4(1.0), glm::acos(glm::dot(initVec, curVec)), glm::cross(curVec, initVec));
-
             curModel = rotateMat * model;
         }
         else {
@@ -285,16 +282,16 @@ void drawPoint(cv::Mat &img, std::vector<std::vector<int> > pos) {
     }
 
 }
-void normalize_3d(std::vector<std::vector<int> > & joints3d, std::vector<float> & result) {
+void joints_scale_3d(std::vector<std::vector<double> > & joints3d, std::vector<float> & result) {
     result.clear();
     int scale_size = 4;
     for (int i=0; i < joints3d.size(); ++i) {
         // here I need to normalize them
         //
         
-        result.push_back(scale_size * static_cast<double>(joints3d[i][0]) / 1400.0);
-        result.push_back(-scale_size * static_cast<double>(joints3d[i][1]) / 1600.0);
-        result.push_back(-scale_size * static_cast<double>(joints3d[i][2]) / 1400.0);
+        result.push_back(scale_size * static_cast<double>(joints3d[i][0]));
+        result.push_back(scale_size * static_cast<double>(joints3d[i][1]));
+        result.push_back(scale_size * static_cast<double>(joints3d[i][2]));
         //std::cout << i << " "<< result[i*3 + 0] << ',' << result[i*3 + 1] << ", " << result[i*3 + 2]<< std::endl;
     }
 }

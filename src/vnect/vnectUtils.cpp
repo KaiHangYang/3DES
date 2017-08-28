@@ -181,7 +181,7 @@ cv::Mat mVNectUtils::padImage(const cv::Mat &img, cv::Size box_size) {
     img.copyTo(dst(rect));
     return dst;
 }
-std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vector<std::vector<int> > & joints3d) {
+std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vector<std::vector<double> > & joints3d) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
@@ -304,7 +304,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     joints_3d.clear();
     for (int i=0; i < o_channels; ++i) {
         std::vector<int> p2({0, 0});
-        std::vector<int> p3({0, 0, 0});
+        std::vector<double> p3({0, 0, 0});
         
         cv::Mat hm;
         cv::resize(heatmaps[i], hm, _box_size);
@@ -330,10 +330,11 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
         //std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
+    // Get the normalized 3d location of joints
     for (int i=0; i < o_channels; ++i) {
-        joints_3d[i][0] -= joints_3d[14][0];
-        joints_3d[i][1] -= joints_3d[14][1];
-        joints_3d[i][2] -= joints_3d[14][2];
+        joints_3d[i][0] = (joints_3d[i][0] - joints_3d[14][0])/1400.0;
+        joints_3d[i][1] = -1*(joints_3d[i][1] - joints_3d[14][1])/1600.0;
+        joints_3d[i][2] = -1*(joints_3d[i][2] - joints_3d[14][2])/1400.0;
     }
 
     // return the 3D points directory
@@ -341,5 +342,23 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
 
     // change the _time_stamp;
     _time_stamp += 1.0/10;
+    // Calculate the joint angles (I do this as vector).
+    std::vector<std::vector<double>> tmp_angles;
+    for (int i=0; i < joint_indics.size()/2; ++i) {
+        int posa = joint_indics[2 * i + 1];
+        int posb = joint_indics[2 * i];
+        double bone_length = std::sqrt(
+                std::pow(joints_3d[posa][0] - joints_3d[posb][0],2) + \
+                std::pow(joints_3d[posa][1] - joints_3d[posb][1],2) + \
+                std::pow(joints_3d[posa][2] - joints_3d[posb][2],2));
+        tmp_angles.push_back(std::vector<double>({
+                    (joints_3d[posa][0]-joints_3d[posb][0])/bone_length,
+                    (joints_3d[posa][1]-joints_3d[posb][1])/bone_length,
+                    (joints_3d[posa][2]-joints_3d[posb][2])/bone_length
+                    }));
+    }
+    // then give the angles to joint_angles;
+    joint_angles = tmp_angles;
+    // after this, you need to fitting it using the energy function.
     return joints_2d;
 }
