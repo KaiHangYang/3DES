@@ -1,8 +1,10 @@
 #include "../../include/vnectUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
-#include <algorithm>
 #include "../../include/mDefs.h"
+#include "../../include/mFittingUtils.hpp"
 #include "../../include/oneEuro.hpp"
+#include <algorithm>
+#include <stdlib.h>
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -14,6 +16,17 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
     _hm_factor = 8.0;
     _is_first_frame = true;
     _time_stamp = 0;
+    for (int i=0; i < 3; ++i) {
+        joint_angles[i] = new double[3*(joint_num-1)];
+        global_d[i] = new double[3];
+    }
+}
+
+mVNectUtils::~mVNectUtils() {
+    for (int i=0; i < 3; ++i) {
+        delete joint_angles[i];
+        delete global_d[i];
+    }
 }
 std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
     std::vector<int> result({0, 0});
@@ -102,7 +115,6 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
             for (int i=0; i < 4; ++i) {
                 _crop_rect[i] = (1-mu) * _crop_rect[i] + mu * old_crop[i];
             }
-            _is_first_frame = false;
         }
         _crop_rect[0] = std::max(min_crop[1], 0);
         _crop_rect[1] = std::max(min_crop[0], 0);
@@ -181,12 +193,34 @@ cv::Mat mVNectUtils::padImage(const cv::Mat &img, cv::Size box_size) {
     img.copyTo(dst(rect));
     return dst;
 }
+std::vector<std::vector<double> > mVNectUtils::cal_3dpoints(const double * angles, const double * d) {
+    std::vector<std::vector<double> > result;
+    for (int i=0; i < joint_num; ++i) {
+        result.push_back(std::vector<double>({0, 0, 0}));
+    }
+    // set the root point to d.
+    result[14] = std::vector<double>({d[0], d[1], d[2]});
+    
+    // Then calculate all the points from the root point.
+    for (int i=0; i < joint_num - 1; ++i) {
+        int from = joint_indics.at(2*i);
+        int to = joint_indics.at(2*i+1);
+        // Here the "from" point is already known
+        result[to][0] = result[from][0] + joint_bone_length[i] * angles[3*i + 0];
+        result[to][1] = result[from][1] + joint_bone_length[i] * angles[3*i + 1];
+        result[to][2] = result[from][2] + joint_bone_length[i] * angles[3*i + 2];
+    }
+    return result; 
+}
+
 std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vector<std::vector<double> > & joints3d) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
-    one_euro_filter<> mFilter(10, 1, 1, 1);
-    
+    // now the frequency is not very high
+    one_euro_filter<> mFilter(7.0, 1.7, 0.3, 1);
+    one_euro_filter<> mFilter_3d(7.0, 0.8, 0.4, 1);
+    _time_stamp += 1.0/7;
     cv::resize(img, tmp, cv::Size(vnect_resize_width, vnect_resize_height));
     // Here according to the demo, the image is resized to [448, 848]
     // TODO: Change to only reshape the net once.
@@ -308,19 +342,33 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
         
         cv::Mat hm;
         cv::resize(heatmaps[i], hm, _box_size);
+        //if (i == 9) {
+            //cv::imshow("left ankle", hm);
+            //cv::waitKey();
+        //}
+        //if (i == 13) {
+            //cv::imshow("right jiaohuai", hm);
+            //cv::waitKey();
+        //}
+
         //cv::imshow("testaa", hm);
-        //cv::waitKey();
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
-        int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
-        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        //int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        //int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
 
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
+        //p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
         p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
         p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
         p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
+
         // change them here
+        //p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
+        //p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
         p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
         p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
@@ -341,24 +389,40 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     joints3d = joints_3d;
 
     // change the _time_stamp;
-    _time_stamp += 1.0/10;
     // Calculate the joint angles (I do this as vector).
-    std::vector<std::vector<double>> tmp_angles;
-    for (int i=0; i < joint_indics.size()/2; ++i) {
+    double tmp_angles[3*(joint_num-1)];
+    for (int i=0; i < joint_num - 1; ++i) {
         int posa = joint_indics[2 * i + 1];
         int posb = joint_indics[2 * i];
         double bone_length = std::sqrt(
                 std::pow(joints_3d[posa][0] - joints_3d[posb][0],2) + \
                 std::pow(joints_3d[posa][1] - joints_3d[posb][1],2) + \
                 std::pow(joints_3d[posa][2] - joints_3d[posb][2],2));
-        tmp_angles.push_back(std::vector<double>({
-                    (joints_3d[posa][0]-joints_3d[posb][0])/bone_length,
-                    (joints_3d[posa][1]-joints_3d[posb][1])/bone_length,
-                    (joints_3d[posa][2]-joints_3d[posb][2])/bone_length
-                    }));
+        tmp_angles[3*i + 0] = (joints_3d[posa][0]-joints_3d[posb][0])/bone_length;
+        tmp_angles[3*i + 1] = (joints_3d[posa][1]-joints_3d[posb][1])/bone_length;
+        tmp_angles[3*i + 2] = (joints_3d[posa][2]-joints_3d[posb][2])/bone_length;
     }
     // then give the angles to joint_angles;
-    joint_angles = tmp_angles;
+    // vector is already deep copy
+    if (!_is_first_frame) {
+        memcpy(joint_angles[2], joint_angles[1], sizeof(double) * (joint_num-1)*3);
+        memcpy(joint_angles[1], joint_angles[0], sizeof(double) * (joint_num-1)*3);
+    }
+    memcpy(joint_angles[0], tmp_angles, sizeof(double) * (joint_num-1)*3);
+    if (_is_first_frame) {
+        memcpy(joint_angles[1], tmp_angles, sizeof(double) * (joint_num-1)*3);
+        memcpy(joint_angles[2], tmp_angles, sizeof(double) * (joint_num-1)*3);
+        // initialize the global_d
+        for(int i=0; i < 3; ++i) {
+            global_d[i][0] = 0;
+            global_d[i][1] = 0;
+            global_d[i][2] = 0;
+        }
+    }
+    // then fitting!
     // after this, you need to fitting it using the energy function.
+    if (_is_first_frame) {
+        _is_first_frame = false;
+    }
     return joints_2d;
 }
