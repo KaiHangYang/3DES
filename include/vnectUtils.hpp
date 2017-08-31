@@ -1,7 +1,7 @@
 #ifndef VNECT_UTILS
 #define VNECT_UTILS
 #include "mCaffePredictor.hpp"
-
+#include <glm/glm.hpp>
 // According to the paper, I got that the image is 
 // represented by joint angle \theta and camera location d
 // I will maintain a bone length array. 
@@ -28,7 +28,9 @@ private:
     double * joints_3d[3];
     // Used for fitting! P^G_t P^G_t-1 P^G_t-2 and the same order of global_d
     double * joint_angles[3]; 
-    double * global_d[3];
+    double * global_d[3];    
+
+    glm::mat4 mvp;
 
     cv::Mat padImage(const cv::Mat &img, cv::Size box_size);
     std::vector<int> crop_pos(bool type, int crop_offset=0);

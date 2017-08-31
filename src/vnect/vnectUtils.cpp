@@ -5,6 +5,7 @@
 #include "../../include/oneEuro.hpp"
 #include <algorithm>
 #include <stdlib.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -16,6 +17,9 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
     _hm_factor = 8.0;
     _is_first_frame = true;
     _time_stamp = 0;
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), ratio_w / ratio_h, 0.1f, 100.0f);
+    glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    mvp = projection * view;
     for (int i=0; i < 3; ++i) {
         joints_2d[i] = new double[2*joint_num];
         joints_3d[i] = new double[3*joint_num];
@@ -361,33 +365,33 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
 
         //cv::imshow("testaa", hm);
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        //int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
-        //int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
-        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
 
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
-        //p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        //p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        //p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
-        p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
-        p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
+        p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
+        //p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
+        //p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
 
         // change them here
-        //p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
-        //p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
-        p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
-        p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
+        p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
+        p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
+        //p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
+        //p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
-        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height;
-        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width;
+        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height; // y
+        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width; // x
         
         joints_3d[0][3*i + 0] = p3[0];
         joints_3d[0][3*i + 1] = p3[1];
         joints_3d[0][3*i + 2] = p3[2];
 
-        //std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
+        std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
     // Get the normalized 3d location of joints
@@ -431,9 +435,8 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
             global_d[i][2] = 0;
         }
     }
-    
+    mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles[0], global_d[0]);
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
-    
     // then fitting!
     // after this, you need to fitting it using the energy function.
     if (_is_first_frame) {

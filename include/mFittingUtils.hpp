@@ -12,6 +12,6 @@ namespace mFitting {
     // get the points from the angles and d
     template<typename T> void cal_3djoints(const T * const angles, const T * const d, T * result);
     template<typename T> void matrix_multi(glm::mat4 mvp, T x, T y, T z, T * tmp);
-    //void fitting(double * angles, double *d);
+    void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double * angles, double *d);
 }
 #endif
