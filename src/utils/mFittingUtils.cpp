@@ -13,8 +13,9 @@ namespace mFitting {
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
             // theta is array(60) d is array(3) residuals is array(3)
             // For every Pl point it need such a cost function
-            double global_3d[joint_num*3];
+            T global_3d[joint_num*3];
             // get the 3D location from d and theta with a fixed bone length
+            
             cal_3djoints(theta, d, global_3d);
             // the minus the 
             global_3d[num*3] -= d[0];
@@ -37,13 +38,13 @@ namespace mFitting {
     struct EPROJError {
         EPROJError(double kl_x, double kl_y, int num, glm::mat4 mvp): kl_x(kl_x), kl_y(kl_y), num(num), MVP(mvp){};
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
-            double global_3d[joint_num*3];
+            T global_3d[joint_num*3];
             cal_3djoints(theta, d, global_3d);
             // Project the point to the image plane
-            glm::vec4 tmp(global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], 1.0);
-            tmp = MVP * tmp; // re-projection the 3d joint location to the image plane
-            residuals[0] = T(tmp[0]) - T(kl_x);
-            residuals[1] = T(tmp[1]) - T(kl_y);
+            T tmp[4];
+            matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
+            residuals[0] = tmp[0] - T(kl_x);
+            residuals[1] = tmp[1] - T(kl_y);
             
             return true;
         }
@@ -56,11 +57,11 @@ namespace mFitting {
         int num;
         glm::mat4 MVP;
     };
-    // Punish the accelation of the change
+    //// Punish the accelation of the change
     struct ESMOOTHError {
         ESMOOTHError(std::vector<double> pl_x, std::vector<double> pl_y, std::vector<double> pl_z, int num): pl_x(pl_x), pl_y(pl_y), pl_z(pl_z), num(num) {}
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
-            double global_3d[joint_num * 3];
+            T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             // Cal the acceleration
             residuals[0] = T(global_3d[num * 3]) + T(pl_x[1]) - T(2.0) * T(pl_x[0]);
@@ -81,7 +82,7 @@ namespace mFitting {
     struct EDEPTHError {
         EDEPTHError(double pl_z, int num): pl_z(pl_z), num(num) {}
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
-            double global_3d[joint_num * 3];
+            T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             
             residuals[0] = T(global_3d[num * 3 + 2]) - T(pl_z);
@@ -95,10 +96,9 @@ namespace mFitting {
         double pl_z;
         int num;
     };
-
-    void cal_3djoints(const double * const angles, const double * const d, double * result) {
+    
+    template<typename T> void cal_3djoints(const T * const angles, const T * const d, T * result) {
         // set the root point to d.
-        memset(result, 0, sizeof(double)*3*joint_num);
         result[3*14] = d[0];
         result[3*14 + 1] = d[1]; 
         result[3*14 + 2] = d[2];
@@ -113,13 +113,28 @@ namespace mFitting {
             result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * angles[3*i + 2];
         }
     }
-
-    //void fitting(double * joints_2d, double * joints_3d, glm::mat4 &mvp, double * angles, double *d) {
-        //ceres::Problem problem;
-        //for (int i=0; i < joint_num; ++i) {
-            //ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[3*i], joints_3d[3*i + 1], joints_3d[3*i + 2], i);
-            //ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[2*i], joints_2d[2*i + 1], i, mvp);
-            ////ceres::CostFunction * e3_cost_function = ESMOOTHError::Create();
-        //}
-    //}
+    template<typename T> void matrix_multi(glm::mat4 mvp, T x, T y, T z, T * tmp) {
+        // glm is the col main
+        for (int i=0; i < 4; ++i) {
+            tmp[i] = T(mvp[0][i]) * x +T(mvp[1][i]) * y + T(mvp[2][i]) * z + T(mvp[3][i]);
+        }
+    }
+    void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double * angles, double *d) {
+        ceres::Problem problem;
+        for (int i=0; i < joint_num; ++i) {
+            ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
+            ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[0][2*i], joints_2d[0][2*i + 1], i, mvp);
+            ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(std::vector<double>({joints_3d[1][3*i], joints_3d[2][3*i]}), std::vector<double>({joints_3d[1][3*i + 1], joints_3d[2][3*i + 1]}), std::vector<double>({joints_3d[1][3*i + 2], joints_3d[2][3*i + 2]}), i);
+            ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
+            problem.AddResidualBlock(e1_cost_function, NULL, angles, d);
+            problem.AddResidualBlock(e2_cost_function, NULL, angles, d);
+            problem.AddResidualBlock(e3_cost_function, NULL, angles, d);
+            problem.AddResidualBlock(e4_cost_function, NULL, angles, d);
+        }
+        ceres::Solver::Options option;
+        option.linear_solver_type = ceres::DENSE_SCHUR;
+        option.minimizer_progress_to_stdout = true;
+        ceres::Solver::Summary summary;
+        ceres::Solve(option, &problem, &summary);
+    }
 }

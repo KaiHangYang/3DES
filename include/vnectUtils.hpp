@@ -33,7 +33,7 @@ private:
     cv::Mat padImage(const cv::Mat &img, cv::Size box_size);
     std::vector<int> crop_pos(bool type, int crop_offset=0);
     // Used to get the 3d location of all points by \theta and d
-    std::vector<std::vector<double> > cal_3dpoints(const double * angles, const double * d);
+    void cal_3dpoints(const double * angles, const double * d, double * result);
 public:
     ~mVNectUtils();
     mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path="");

@@ -264,8 +264,8 @@ void mouse_move_callback(GLFWwindow * window, double x, double y) {
 void drawPoint(cv::Mat &img, double * pos) {
     for (int i=0; i < joint_num; ++i) {
 
-        int x = pos[i * 2 + 0] * img.size().width / vnect_resize_width;
-        int y = pos[i * 2 + 1] * img.size().height / vnect_resize_height;
+        int x = pos[i * 2 + 0] * img.size().height;
+        int y = pos[i * 2 + 1] * img.size().width;
         for (int j=-2; j < 3; ++j) {
             for (int k=-2; k < 3; ++k) {
                 if (x+j < 0 || x+j >= img.size().height || y+k >= img.size().width || y+k < 0) {

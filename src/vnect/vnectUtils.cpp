@@ -1,7 +1,7 @@
 #include "../../include/vnectUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
 #include "../../include/mDefs.h"
-//#include "../../include/mFittingUtils.hpp"
+#include "../../include/mFittingUtils.hpp"
 #include "../../include/oneEuro.hpp"
 #include <algorithm>
 #include <stdlib.h>
@@ -39,11 +39,13 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
         result[0] = 65536;
         result[1] = 65536;
         for (int i=0; i < joint_num; ++i) {
-            if (joints_2d[0][2*i + 0] < result[0]) {
-                result[0] = joints_2d[0][2*i + 0];
+            double tmp1 = joints_2d[0][2*i + 0] * vnect_resize_height;
+            double tmp2 = joints_2d[0][2*i + 1] * vnect_resize_width;
+            if (tmp1 < result[0]) {
+                result[0] = tmp1;
             }
-            if (joints_2d[0][2*i + 1] < result[1]) {
-                result[1] = joints_2d[0][2*i + 1];
+            if (tmp2 < result[1]) {
+                result[1] = tmp2;
             }
         }
 
@@ -54,11 +56,13 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
     else {
         // get the max
         for (int i=0; i < joint_num; ++i) {
-            if (joints_2d[0][2*i + 0] > result[0]) {
-                result[0] = joints_2d[0][2*i + 0];
+            double tmp1 = joints_2d[0][2*i + 0] * vnect_resize_height;
+            double tmp2 = joints_2d[0][2*i + 1] * vnect_resize_width;
+            if (tmp1 > result[0]) {
+                result[0] = tmp1;
             }
-            if (joints_2d[0][2*i + 1] > result[1]) {
-                result[1] = joints_2d[0][2*i + 1];
+            if (tmp2 > result[1]) {
+                result[1] = tmp2;
             }
         }
         result[0] = result[0] + crop_offset;
@@ -193,24 +197,20 @@ cv::Mat mVNectUtils::padImage(const cv::Mat &img, cv::Size box_size) {
     img.copyTo(dst(rect));
     return dst;
 }
-std::vector<std::vector<double> > mVNectUtils::cal_3dpoints(const double * angles, const double * d) {
-    std::vector<std::vector<double> > result;
-    for (int i=0; i < joint_num; ++i) {
-        result.push_back(std::vector<double>({0, 0, 0}));
-    }
-    // set the root point to d.
-    result[14] = std::vector<double>({d[0], d[1], d[2]});
+void mVNectUtils::cal_3dpoints(const double * angles, const double * d, double * result) {
+    result[3*14] = d[0];
+    result[3*14 + 1] = d[1]; 
+    result[3*14 + 2] = d[2];
     
     // Then calculate all the points from the root point.
     for (int i=0; i < joint_num - 1; ++i) {
         int from = joint_indics.at(2*i);
         int to = joint_indics.at(2*i+1);
         // Here the "from" point is already known
-        result[to][0] = result[from][0] + joint_bone_length[i] * angles[3*i + 0];
-        result[to][1] = result[from][1] + joint_bone_length[i] * angles[3*i + 1];
-        result[to][2] = result[from][2] + joint_bone_length[i] * angles[3*i + 2];
+        result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * angles[3*i + 0];
+        result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * angles[3*i + 1];
+        result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * angles[3*i + 2];
     }
-    return result; 
 }
 
 void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d) {
@@ -380,8 +380,8 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
         p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
-        joints_2d[0][2*i + 0] = p2[0];
-        joints_2d[0][2*i + 1] = p2[1];
+        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height;
+        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width;
         
         joints_3d[0][3*i + 0] = p3[0];
         joints_3d[0][3*i + 1] = p3[1];
@@ -431,6 +431,9 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
             global_d[i][2] = 0;
         }
     }
+    
+    cal_3dpoints(joint_angles[0], global_d[0], joint3d);
+    
     // then fitting!
     // after this, you need to fitting it using the energy function.
     if (_is_first_frame) {
