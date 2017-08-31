@@ -6,8 +6,9 @@
 #include "../../include/vnectJointsInfo.hpp"
 
 namespace mFitting {
+    // Emmmm...., I am probably using a fk(forward kenimatic) model. It doesn't matter.
     struct EIKError {
-        EIKError(double pl_x, double pl_y, double pl_z, int num): pl_x(pl_x), pl_y(pl_y), pl_z(pl_z) {};
+        EIKError(double pl_x, double pl_y, double pl_z, int num): pl_x(pl_x), pl_y(pl_y), pl_z(pl_z), num(num){};
         
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
             // theta is array(60) d is array(3) residuals is array(3)
@@ -25,7 +26,9 @@ namespace mFitting {
             residuals[2] = T(global_3d[num*3 + 2]) - T(pl_z);
             return true;
         }
-        
+        static ceres::CostFunction * Create(const double pl_x, const double pl_y, const double pl_z, int num) {
+            return (new ceres::AutoDiffCostFunction<EIKError, 3, joint_num*3, 3>(new EIKError(pl_x, pl_y, pl_z, num)));
+        }
         double pl_x;
         double pl_y;
         double pl_z;
@@ -44,6 +47,10 @@ namespace mFitting {
             
             return true;
         }
+
+        static ceres::CostFunction * Create(const double kl_x, const double kl_y, int num, glm::mat4 mvp) {
+            return (new ceres::AutoDiffCostFunction<EPROJError, 2, joint_num*3, 3>(new EPROJError(kl_x, kl_y, num, mvp)));
+        }
         double kl_x;
         double kl_y;
         int num;
@@ -61,6 +68,10 @@ namespace mFitting {
             residuals[2] = T(global_3d[num * 3 + 2]) + T(pl_z[1]) - T(2.0) * T(pl_z[0]);
             return true;
         }
+
+        static ceres::CostFunction * Create(const std::vector<double> pl_x, const std::vector<double> pl_y, const std::vector<double> pl_z, int num) {
+            return (new ceres::AutoDiffCostFunction<ESMOOTHError, 3, joint_num * 3, 3>(new ESMOOTHError(pl_x, pl_y, pl_z, num)));
+        }
         // Store the previous and previous previous data
         std::vector<double> pl_x;
         std::vector<double> pl_y;
@@ -76,11 +87,16 @@ namespace mFitting {
             residuals[0] = T(global_3d[num * 3 + 2]) - T(pl_z);
             return true;
         }
+
+        static ceres::CostFunction * Create(double pl_z, int num) {
+            return (new ceres::AutoDiffCostFunction<EDEPTHError, 1, joint_num*3, 3>(new EDEPTHError(pl_z, num)));
+        }
+
         double pl_z;
         int num;
     };
 
-    void cal_3djoints(double * angles, double * d, double * result) {
+    void cal_3djoints(const double * const angles, const double * const d, double * result) {
         // set the root point to d.
         memset(result, 0, sizeof(double)*3*joint_num);
         result[3*14] = d[0];
@@ -97,4 +113,13 @@ namespace mFitting {
             result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * angles[3*i + 2];
         }
     }
+
+    //void fitting(double * joints_2d, double * joints_3d, glm::mat4 &mvp, double * angles, double *d) {
+        //ceres::Problem problem;
+        //for (int i=0; i < joint_num; ++i) {
+            //ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[3*i], joints_3d[3*i + 1], joints_3d[3*i + 2], i);
+            //ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[2*i], joints_2d[2*i + 1], i, mvp);
+            ////ceres::CostFunction * e3_cost_function = ESMOOTHError::Create();
+        //}
+    //}
 }

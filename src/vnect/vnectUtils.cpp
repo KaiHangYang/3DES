@@ -1,7 +1,7 @@
 #include "../../include/vnectUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
 #include "../../include/mDefs.h"
-#include "../../include/mFittingUtils.hpp"
+//#include "../../include/mFittingUtils.hpp"
 #include "../../include/oneEuro.hpp"
 #include <algorithm>
 #include <stdlib.h>
@@ -17,6 +17,8 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
     _is_first_frame = true;
     _time_stamp = 0;
     for (int i=0; i < 3; ++i) {
+        joints_2d[i] = new double[2*joint_num];
+        joints_3d[i] = new double[3*joint_num];
         joint_angles[i] = new double[3*(joint_num-1)];
         global_d[i] = new double[3];
     }
@@ -26,6 +28,8 @@ mVNectUtils::~mVNectUtils() {
     for (int i=0; i < 3; ++i) {
         delete joint_angles[i];
         delete global_d[i];
+        delete joints_2d[i];
+        delete joints_3d[i];
     }
 }
 std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
@@ -34,31 +38,31 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
         // 0 get the min
         result[0] = 65536;
         result[1] = 65536;
-        for (int i=0; i < joints_2d.size(); ++i) {
-            if (joints_2d.at(i)[0] < result[0]) {
-                result[0] = joints_2d.at(i)[0];
+        for (int i=0; i < joint_num; ++i) {
+            if (joints_2d[0][2*i + 0] < result[0]) {
+                result[0] = joints_2d[0][2*i + 0];
             }
-            if (joints_2d.at(i)[1] < result[1]) {
-                result[1] = joints_2d.at(i)[1];
+            if (joints_2d[0][2*i + 1] < result[1]) {
+                result[1] = joints_2d[0][2*i + 1];
             }
         }
 
-        result[0] = static_cast<int>(result[0]) - crop_offset;
-        result[1] = static_cast<int>(result[1]) - crop_offset;
+        result[0] = result[0] - crop_offset;
+        result[1] = result[1] - crop_offset;
 
     }
     else {
         // get the max
-        for (int i=0; i < joints_2d.size(); ++i) {
-            if (joints_2d.at(i)[0] > result[0]) {
-                result[0] = joints_2d.at(i)[0];
+        for (int i=0; i < joint_num; ++i) {
+            if (joints_2d[0][2*i + 0] > result[0]) {
+                result[0] = joints_2d[0][2*i + 0];
             }
-            if (joints_2d.at(i)[1] > result[1]) {
-                result[1] = joints_2d.at(i)[1];
+            if (joints_2d[0][2*i + 1] > result[1]) {
+                result[1] = joints_2d[0][2*i + 1];
             }
         }
-        result[0] = static_cast<int>(result[0]) + crop_offset;
-        result[1] = static_cast<int>(result[1]) + crop_offset;
+        result[0] = result[0] + crop_offset;
+        result[1] = result[1] + crop_offset;
     }
     return result;
 }
@@ -139,16 +143,12 @@ void mVNectUtils::preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_d
             _pad_offset[0] = (_crop_size - tmp_size.width)/2.0;
         }
         tmp = padImage(tmp, _box_size);
-        // TODO You need to changed the net work reshape place here.
-        // And the image size changed here, you need to change to relatived 
-        // variables.
     }
 
     // Once the crop is known, process the img
     // the data type as the blob 
     std::vector<cv::Mat> data;
     cv::Mat tmp_resize;
-    // TODO:the input_size must be updated after the net is reshaped
     cv::Size hehe = tmp.size();
     if (tmp.size() != _input_size) {
         cv::resize(tmp, tmp_resize, _input_size);
@@ -213,7 +213,7 @@ std::vector<std::vector<double> > mVNectUtils::cal_3dpoints(const double * angle
     return result; 
 }
 
-std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vector<std::vector<double> > & joints3d) {
+void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d) {
     cv::Mat tmp;
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
@@ -263,6 +263,7 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     _net->Forward();
     // There have been 4 blobs in the output the for confidence map is contained in them.
     std::vector<caffe::Blob<float> *> output_layer = _net->output_blobs();
+    // Store the result heatmap and location map
     std::vector<std::vector<cv::Mat> > result;
     
     int o_width = output_layer[0]->width();
@@ -334,8 +335,15 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     // then all the heatmaps is ready for calculate the 2D and 3D location
     // clear the joints stored in the vector
     // Here cause there is a bb, I need to change the location to the previous picture
-    joints_2d.clear();
-    joints_3d.clear();
+    if (!_is_first_frame) {
+        memcpy(joints_2d[2], joints_2d[1], sizeof(double)*2*joint_num);
+        memcpy(joints_2d[1], joints_2d[0], sizeof(double)*2*joint_num);
+        memcpy(joints_3d[2], joints_3d[1], sizeof(double)*3*joint_num);
+        memcpy(joints_3d[1], joints_3d[0], sizeof(double)*3*joint_num);
+    }
+    memset(joints_2d[0], 0, sizeof(double) * 2 * joint_num);
+    memset(joints_3d[0], 0, sizeof(double) * 3 * joint_num);
+
     for (int i=0; i < o_channels; ++i) {
         std::vector<int> p2({0, 0});
         std::vector<double> p3({0, 0, 0});
@@ -372,22 +380,26 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
         p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
         p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
-        joints_2d.push_back(p2);
-        joints_3d.push_back(p3);
+        joints_2d[0][2*i + 0] = p2[0];
+        joints_2d[0][2*i + 1] = p2[1];
+        
+        joints_3d[0][3*i + 0] = p3[0];
+        joints_3d[0][3*i + 1] = p3[1];
+        joints_3d[0][3*i + 2] = p3[2];
 
         //std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
     // Get the normalized 3d location of joints
-    for (int i=0; i < o_channels; ++i) {
-        joints_3d[i][0] = (joints_3d[i][0] - joints_3d[14][0])/1400.0;
-        joints_3d[i][1] = -1*(joints_3d[i][1] - joints_3d[14][1])/1600.0;
-        joints_3d[i][2] = -1*(joints_3d[i][2] - joints_3d[14][2])/1400.0;
+    for (int i=0; i < joint_num; ++i) {
+        joints_3d[0][3*i + 0] = (joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1400.0;
+        joints_3d[0][3*i + 1] = -1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0;
+        joints_3d[0][3*i + 2] = -1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1400.0;
     }
 
     // return the 3D points directory
-    joints3d = joints_3d;
-
+    memcpy(joint3d, joints_3d[0], sizeof(double)*3*joint_num);
+    memcpy(joint2d, joints_2d[0], sizeof(double)*2*joint_num);
     // change the _time_stamp;
     // Calculate the joint angles (I do this as vector).
     double tmp_angles[3*(joint_num-1)];
@@ -395,12 +407,12 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
         int posa = joint_indics[2 * i + 1];
         int posb = joint_indics[2 * i];
         double bone_length = std::sqrt(
-                std::pow(joints_3d[posa][0] - joints_3d[posb][0],2) + \
-                std::pow(joints_3d[posa][1] - joints_3d[posb][1],2) + \
-                std::pow(joints_3d[posa][2] - joints_3d[posb][2],2));
-        tmp_angles[3*i + 0] = (joints_3d[posa][0]-joints_3d[posb][0])/bone_length;
-        tmp_angles[3*i + 1] = (joints_3d[posa][1]-joints_3d[posb][1])/bone_length;
-        tmp_angles[3*i + 2] = (joints_3d[posa][2]-joints_3d[posb][2])/bone_length;
+                std::pow(joints_3d[0][posa*3 + 0] - joints_3d[0][posb*3 + 0],2) + \
+                std::pow(joints_3d[0][posa*3 + 1] - joints_3d[0][posb*3 + 1],2) + \
+                std::pow(joints_3d[0][posa*3 + 2] - joints_3d[0][posb*3 + 2],2));
+        tmp_angles[3*i + 0] = (joints_3d[0][posa*3 + 0]-joints_3d[0][posb*3 + 0])/bone_length;
+        tmp_angles[3*i + 1] = (joints_3d[0][posa*3 + 1]-joints_3d[0][posb*3 + 1])/bone_length;
+        tmp_angles[3*i + 2] = (joints_3d[0][posa*3 + 2]-joints_3d[0][posb*3 + 2])/bone_length;
     }
     // then give the angles to joint_angles;
     // vector is already deep copy
@@ -424,5 +436,4 @@ std::vector<std::vector<int> > mVNectUtils::predict(const cv::Mat &img, std::vec
     if (_is_first_frame) {
         _is_first_frame = false;
     }
-    return joints_2d;
 }

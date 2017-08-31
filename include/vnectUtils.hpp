@@ -24,8 +24,8 @@ private:
     float _crop_scale;
     // The scale of the input and the output. Now it's 8.
     float _hm_factor; 
-    std::vector<std::vector<int> > joints_2d;
-    std::vector<std::vector<double> > joints_3d; 
+    double * joints_2d[3];
+    double * joints_3d[3];
     // Used for fitting! P^G_t P^G_t-1 P^G_t-2 and the same order of global_d
     double * joint_angles[3]; 
     double * global_d[3];
@@ -37,6 +37,6 @@ private:
 public:
     ~mVNectUtils();
     mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path="");
-    std::vector<std::vector<int> > predict(const cv::Mat &img, std::vector<std::vector<double> > &joints3d);
+    void predict(const cv::Mat &img, double * joint2d, double * joints3d);
 };
 #endif
