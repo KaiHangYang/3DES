@@ -73,7 +73,7 @@ int main(void) {
         system("pause");
         return -1;
     }
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), ratio_w / ratio_h, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(base_vof), ratio_w / ratio_h, 0.1f, 100.0f);
     glm::mat4 view = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     //model = glm::mat4(1.0f);
     //model = glm::scale(model, glm::vec3(4, 4, 4));
@@ -264,8 +264,8 @@ void mouse_move_callback(GLFWwindow * window, double x, double y) {
 void drawPoint(cv::Mat &img, double * pos) {
     for (int i=0; i < joint_num; ++i) {
 
-        int x = pos[i * 2 + 0] * img.size().height;
-        int y = pos[i * 2 + 1] * img.size().width;
+        int x = (pos[i * 2 + 0]+0.5) * img.size().height;
+        int y = (pos[i * 2 + 1]+0.5) * img.size().width;
         for (int j=-2; j < 3; ++j) {
             for (int k=-2; k < 3; ++k) {
                 if (x+j < 0 || x+j >= img.size().height || y+k >= img.size().width || y+k < 0) {

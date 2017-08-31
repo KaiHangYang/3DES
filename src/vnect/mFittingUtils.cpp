@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "../../include/mFittingUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
+#include "../../include/mDefs.h"
 
 namespace mFitting {
     // Emmmm...., I am probably using a fk(forward kenimatic) model. It doesn't matter.
@@ -42,10 +43,14 @@ namespace mFitting {
             cal_3djoints(theta, d, global_3d);
             // Project the point to the image plane
             T tmp[4];
-            matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
-            residuals[0] = tmp[0] - T(kl_x);
-            residuals[1] = tmp[1] - T(kl_y);
+            T tmp2[4];
+            double base_plane_height = 2.0 * 1.25 * glm::tan(glm::radians(base_vof/2));
+            double base_plane_width = ratio_w * base_plane_height / ratio_h;
             
+            matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
+            matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
+            residuals[0] = T(44) * (tmp[0] - tmp2[0]);
+            residuals[1] = T(44) * (-tmp[1] - tmp2[1]);
             return true;
         }
 
@@ -64,9 +69,9 @@ namespace mFitting {
             T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             // Cal the acceleration
-            residuals[0] = T(global_3d[num * 3]) + T(pl_x[1]) - T(2.0) * T(pl_x[0]);
-            residuals[1] = T(global_3d[num * 3 + 1]) + T(pl_y[1]) - T(2.0) * T(pl_y[0]);
-            residuals[2] = T(global_3d[num * 3 + 2]) + T(pl_z[1]) - T(2.0) * T(pl_z[0]);
+            residuals[0] = T(0.07)*(T(global_3d[num * 3]) + T(pl_x[1]) - T(2.0) * T(pl_x[0]));
+            residuals[1] = T(0.07)*(T(global_3d[num * 3 + 1]) + T(pl_y[1]) - T(2.0) * T(pl_y[0]));
+            residuals[2] = T(0.07)*(T(global_3d[num * 3 + 2]) + T(pl_z[1]) - T(2.0) * T(pl_z[0]));
             return true;
         }
 
@@ -85,7 +90,7 @@ namespace mFitting {
             T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             
-            residuals[0] = T(global_3d[num * 3 + 2]) - T(pl_z);
+            residuals[0] = T(0.11)*(T(global_3d[num * 3 + 2]) - T(pl_z));
             return true;
         }
 
@@ -123,7 +128,7 @@ namespace mFitting {
         ceres::Problem problem;
         for (int i=0; i < joint_num; ++i) {
             ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
-            ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[0][2*i], joints_2d[0][2*i + 1], i, mvp);
+            ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[0][2*i + 1], joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x
             ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(std::vector<double>({joints_3d[1][3*i], joints_3d[2][3*i]}), std::vector<double>({joints_3d[1][3*i + 1], joints_3d[2][3*i + 1]}), std::vector<double>({joints_3d[1][3*i + 2], joints_3d[2][3*i + 2]}), i);
             ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
             problem.AddResidualBlock(e1_cost_function, NULL, angles, d);
@@ -133,7 +138,7 @@ namespace mFitting {
         }
         ceres::Solver::Options option;
         option.linear_solver_type = ceres::DENSE_SCHUR;
-        option.minimizer_progress_to_stdout = true;
+        option.minimizer_progress_to_stdout = false;
         ceres::Solver::Summary summary;
         ceres::Solve(option, &problem, &summary);
     }

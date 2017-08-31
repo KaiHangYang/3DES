@@ -43,8 +43,8 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
         result[0] = 65536;
         result[1] = 65536;
         for (int i=0; i < joint_num; ++i) {
-            double tmp1 = joints_2d[0][2*i + 0] * vnect_resize_height;
-            double tmp2 = joints_2d[0][2*i + 1] * vnect_resize_width;
+            double tmp1 = (joints_2d[0][2*i + 0]+0.5) * vnect_resize_height;
+            double tmp2 = (joints_2d[0][2*i + 1]+0.5) * vnect_resize_width;
             if (tmp1 < result[0]) {
                 result[0] = tmp1;
             }
@@ -60,8 +60,8 @@ std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
     else {
         // get the max
         for (int i=0; i < joint_num; ++i) {
-            double tmp1 = joints_2d[0][2*i + 0] * vnect_resize_height;
-            double tmp2 = joints_2d[0][2*i + 1] * vnect_resize_width;
+            double tmp1 = (joints_2d[0][2*i + 0]+0.5) * vnect_resize_height;
+            double tmp2 = (joints_2d[0][2*i + 1]+0.5) * vnect_resize_width;
             if (tmp1 > result[0]) {
                 result[0] = tmp1;
             }
@@ -365,33 +365,32 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
 
         //cv::imshow("testaa", hm);
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
-        int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
-        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        //int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        //int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
 
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
-        p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        //p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
-        //p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
-        //p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
+        //p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
+        p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
+        p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
 
         // change them here
-        p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
-        p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
-        //p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
-        //p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
+        //p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
+        //p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
+        p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
+        p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
-        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height; // y
-        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width; // x
-        
+        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height - 0.5; // y
+        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width - 0.5; // x 
         joints_3d[0][3*i + 0] = p3[0];
         joints_3d[0][3*i + 1] = p3[1];
         joints_3d[0][3*i + 2] = p3[2];
 
-        std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
+        //std::cout << "pos2d:" << p2[0] << ',' << p2[1] << std::endl;
     }
     // Do this according to the demo code
     // Get the normalized 3d location of joints
