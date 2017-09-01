@@ -48,14 +48,14 @@ namespace mFitting {
             // Project the point to the image plane
             T tmp[4];
             T tmp2[4];
-            double base_plane_height = 2.0 * 1.25 * glm::tan(glm::radians(base_vof/2));
+            double base_plane_height =  3.0 * glm::tan(glm::radians(base_vof/2));
             double base_plane_width = ratio_w * base_plane_height / ratio_h;
             
             matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
             matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
             residuals[0] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
             residuals[1] = T(m_fitting_w2) * (-tmp[1] - tmp2[1]);
-            //std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
+            std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
 
             return true;
         }
@@ -129,12 +129,16 @@ namespace mFitting {
         for (int i=0; i < 4; ++i) {
             tmp[i] = T(mvp[0][i]) * x +T(mvp[1][i]) * y + T(mvp[2][i]) * z + T(mvp[3][i]);
         }
+
+        for (int i=0; i < 4; ++i) {
+            tmp[i] /= tmp[3];
+        }
     }
     void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double * angles, double *d) {
         ceres::Problem problem;
         for (int i=0; i < joint_num; ++i) {
             ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
-            ceres::CostFunction * e2_cost_function = EPROJError::Create(1*joints_2d[0][2*i + 1], 1*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
+            ceres::CostFunction * e2_cost_function = EPROJError::Create(2*joints_2d[0][2*i + 1], 2*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
             ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(std::vector<double>({joints_3d[1][3*i], joints_3d[2][3*i]}), std::vector<double>({joints_3d[1][3*i + 1], joints_3d[2][3*i + 1]}), std::vector<double>({joints_3d[1][3*i + 2], joints_3d[2][3*i + 2]}), i);
             ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
             problem.AddResidualBlock(e1_cost_function, NULL, angles, d);
