@@ -2,7 +2,6 @@
 #include "../../include/vnectJointsInfo.hpp"
 #include "../../include/mDefs.h"
 #include "../../include/mFittingUtils.hpp"
-#include "../../include/oneEuro.hpp"
 #include <algorithm>
 #include <stdlib.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,6 +25,12 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
         joint_angles[i] = new double[3*(joint_num-1)];
         global_d[i] = new double[3];
     }
+
+    // initialize the filters 
+    for (int i=0; i < joint_num; ++i) {
+        mFilters[i] = new one_euro_filter<double> (4.0, 1.7, 0.3, 1);
+        mFilters_3d[i] = new one_euro_filter<double> (4.0, 0.8, 0.4, 1);
+    }
 }
 
 mVNectUtils::~mVNectUtils() {
@@ -34,6 +39,10 @@ mVNectUtils::~mVNectUtils() {
         delete global_d[i];
         delete joints_2d[i];
         delete joints_3d[i];
+    }
+    for (int i=0; i < joint_num; ++i) {
+        delete mFilters[i];
+        delete mFilters_3d[i];
     }
 }
 std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
@@ -222,8 +231,7 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     caffe::Blob<float> * input_layer = _net->input_blobs()[0];
     _num_channel = img.channels();
     // now the frequency is not very high
-    one_euro_filter<> mFilter(7.0, 1.7, 0.3, 1);
-    one_euro_filter<> mFilter_3d(7.0, 0.8, 0.4, 1);
+    // I made some mistakes. The instance of one_euro is only for one point...
     _time_stamp += 1.0/7;
     cv::resize(img, tmp, cv::Size(vnect_resize_width, vnect_resize_height));
     // Here according to the demo, the image is resized to [448, 848]
@@ -365,10 +373,10 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
 
         //cv::imshow("testaa", hm);
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        //int posx = static_cast<int>(mFilter(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
-        //int posy = static_cast<int>(mFilter(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
-        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        int posx = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        int posy = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
 
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
         //p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);

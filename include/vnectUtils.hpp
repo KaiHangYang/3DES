@@ -2,6 +2,9 @@
 #define VNECT_UTILS
 #include "mCaffePredictor.hpp"
 #include <glm/glm.hpp>
+#include "oneEuro.hpp"
+#include "vnectJointsInfo.hpp"
+
 // According to the paper, I got that the image is 
 // represented by joint angle \theta and camera location d
 // I will maintain a bone length array. 
@@ -29,7 +32,8 @@ private:
     // Used for fitting! P^G_t P^G_t-1 P^G_t-2 and the same order of global_d
     double * joint_angles[3]; 
     double * global_d[3];    
-
+    one_euro_filter<double> *mFilters[joint_num];
+    one_euro_filter<double> *mFilters_3d[joint_num];
     glm::mat4 mvp;
 
     cv::Mat padImage(const cv::Mat &img, cv::Size box_size);
