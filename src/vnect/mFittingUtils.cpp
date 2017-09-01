@@ -7,6 +7,10 @@
 #include "../../include/mDefs.h"
 
 namespace mFitting {
+    const double m_fitting_w1 = 1;
+    const double m_fitting_w2 = 44;
+    const double m_fitting_w3 = 0.07;
+    const double m_fitting_w4 = 0.11;
     // Emmmm...., I am probably using a fk(forward kenimatic) model. It doesn't matter.
     struct EIKError {
         EIKError(double pl_x, double pl_y, double pl_z, int num): pl_x(pl_x), pl_y(pl_y), pl_z(pl_z), num(num){};
@@ -23,9 +27,9 @@ namespace mFitting {
             global_3d[num*3 + 1] -= d[1];
             global_3d[num*3 + 2] -= d[2];
             // then get the resisual 
-            residuals[0] = T(global_3d[num*3]) - T(pl_x);
-            residuals[1] = T(global_3d[num*3 + 1]) - T(pl_y);
-            residuals[2] = T(global_3d[num*3 + 2]) - T(pl_z);
+            residuals[0] = T(m_fitting_w1) * (T(global_3d[num*3]) - T(pl_x));
+            residuals[1] = T(m_fitting_w1) * (T(global_3d[num*3 + 1]) - T(pl_y));
+            residuals[2] = T(m_fitting_w1) * (T(global_3d[num*3 + 2]) - T(pl_z));
             return true;
         }
         static ceres::CostFunction * Create(const double pl_x, const double pl_y, const double pl_z, int num) {
@@ -49,8 +53,10 @@ namespace mFitting {
             
             matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
             matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
-            residuals[0] = T(44) * (tmp[0] - tmp2[0]);
-            residuals[1] = T(44) * (-tmp[1] - tmp2[1]);
+            residuals[0] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
+            residuals[1] = T(m_fitting_w2) * (-tmp[1] - tmp2[1]);
+            //std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
+
             return true;
         }
 
@@ -69,9 +75,9 @@ namespace mFitting {
             T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             // Cal the acceleration
-            residuals[0] = T(0.07)*(T(global_3d[num * 3]) + T(pl_x[1]) - T(2.0) * T(pl_x[0]));
-            residuals[1] = T(0.07)*(T(global_3d[num * 3 + 1]) + T(pl_y[1]) - T(2.0) * T(pl_y[0]));
-            residuals[2] = T(0.07)*(T(global_3d[num * 3 + 2]) + T(pl_z[1]) - T(2.0) * T(pl_z[0]));
+            residuals[0] = T(m_fitting_w3)*(T(global_3d[num * 3]) + T(pl_x[1]) - T(2.0) * T(pl_x[0]));
+            residuals[1] = T(m_fitting_w3)*(T(global_3d[num * 3 + 1]) + T(pl_y[1]) - T(2.0) * T(pl_y[0]));
+            residuals[2] = T(m_fitting_w3)*(T(global_3d[num * 3 + 2]) + T(pl_z[1]) - T(2.0) * T(pl_z[0]));
             return true;
         }
 
@@ -90,7 +96,7 @@ namespace mFitting {
             T global_3d[joint_num * 3];
             cal_3djoints(theta, d, global_3d);
             
-            residuals[0] = T(0.11)*(T(global_3d[num * 3 + 2]) - T(pl_z));
+            residuals[0] = T(m_fitting_w4)*(T(global_3d[num * 3 + 2]) - T(pl_z));
             return true;
         }
 
@@ -128,7 +134,7 @@ namespace mFitting {
         ceres::Problem problem;
         for (int i=0; i < joint_num; ++i) {
             ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
-            ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[0][2*i + 1], joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x
+            ceres::CostFunction * e2_cost_function = EPROJError::Create(1*joints_2d[0][2*i + 1], 1*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
             ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(std::vector<double>({joints_3d[1][3*i], joints_3d[2][3*i]}), std::vector<double>({joints_3d[1][3*i + 1], joints_3d[2][3*i + 1]}), std::vector<double>({joints_3d[1][3*i + 2], joints_3d[2][3*i + 2]}), i);
             ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
             problem.AddResidualBlock(e1_cost_function, NULL, angles, d);

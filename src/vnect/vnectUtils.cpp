@@ -28,8 +28,8 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
 
     // initialize the filters 
     for (int i=0; i < joint_num; ++i) {
-        mFilters[i] = new one_euro_filter<double> (4.0, 1.7, 0.3, 1);
-        mFilters_3d[i] = new one_euro_filter<double> (4.0, 0.8, 0.4, 1);
+        mFilters[i] = new one_euro_filter<double> (1, 1.7, 0.3, 1);
+        mFilters_3d[i] = new one_euro_filter<double> (1, 0.8, 0.4, 1);
     }
 }
 
@@ -373,25 +373,26 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
 
         //cv::imshow("testaa", hm);
         cv::minMaxIdx(hm, nullptr, nullptr, nullptr, &p2[0]);
-        int posx = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
-        int posy = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
-        //int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
-        //int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
+        //int posx = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[0]/_hm_factor), 1), _time_stamp));
+        //int posy = static_cast<int>((*mFilters[i])(std::max(static_cast<int>(p2[1]/_hm_factor), 1), _time_stamp));
+        int posx = std::max(static_cast<int>(p2[0]/_hm_factor), 1);
+        int posy = std::max(static_cast<int>(p2[1]/_hm_factor), 1);
 
         // Here, what you get is not the true (x, y, z), you need to minus the root joint 14
-        //p3[0] = mFilter_3d(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        //p3[1] = mFilter_3d(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
-        //p3[2] = mFilter_3d(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[0] = (*mFilters_3d[i])(100 * xmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[1] = (*mFilters_3d[i])(100 * ymaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
+        //p3[2] = (*mFilters_3d[i])(100 * zmaps[i].at<float>(posx, posy) / _crop_scale, _time_stamp);
         p3[0] = 100 * xmaps[i].at<float>(posx, posy) / _crop_scale;
         p3[1] = 100 * ymaps[i].at<float>(posx, posy) / _crop_scale;
         p3[2] = 100 * zmaps[i].at<float>(posx, posy) / _crop_scale;
 
         // change them here
-        //p2[0] = mFilter(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
-        //p2[1] = mFilter(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
+        //p2[0] = (*mFilters[i])(p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1], _time_stamp); // row
+        //p2[1] = (*mFilters[i])(p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0], _time_stamp); // col
         p2[0] = p2[0]/_crop_scale - _pad_offset[1]/_crop_scale + _crop_rect[1]; // row
         p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
+        // TODO: Here, the 2d points is normalized to [-0.5, 0.5]
         joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height - 0.5; // y
         joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width - 0.5; // x 
         joints_3d[0][3*i + 0] = p3[0];
@@ -402,6 +403,7 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     }
     // Do this according to the demo code
     // Get the normalized 3d location of joints
+    // TODO: But the 3d points is normalized to [-1, 1]
     for (int i=0; i < joint_num; ++i) {
         joints_3d[0][3*i + 0] = (joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1400.0;
         joints_3d[0][3*i + 1] = -1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0;
