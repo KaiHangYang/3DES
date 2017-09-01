@@ -9,7 +9,7 @@
 // represented by joint angle \theta and camera location d
 // I will maintain a bone length array. 
 // The length is 3D length  
-// Just use the camera coordinate as the world coordinate.
+// When fitting, I find something strange, the fitting process doesn't change the z of d, only changed the so called "angles"
 class mVNectUtils: public mCaffePredictor {
 protected:
     virtual void preprocess(const cv::Mat & img, std::vector<cv::Mat> * input_data);
@@ -30,8 +30,8 @@ private:
     double * joints_2d[3];
     double * joints_3d[3];
     // Used for fitting! P^G_t P^G_t-1 P^G_t-2 and the same order of global_d
-    double * joint_angles[3]; 
-    double * global_d[3];    
+    double * joint_angles[3];
+    double * global_d[3];
     one_euro_filter<double> *mFilters[joint_num];
     one_euro_filter<double> *mFilters_3d[joint_num];
     glm::mat4 mvp;

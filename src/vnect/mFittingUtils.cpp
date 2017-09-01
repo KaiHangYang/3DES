@@ -7,10 +7,10 @@
 #include "../../include/mDefs.h"
 
 namespace mFitting {
-    const double m_fitting_w1 = 1;
+    const double m_fitting_w1 = 0;
     const double m_fitting_w2 = 44;
-    const double m_fitting_w3 = 0.07;
-    const double m_fitting_w4 = 0.11;
+    const double m_fitting_w3 = 0;
+    const double m_fitting_w4 = 0;
     // Emmmm...., I am probably using a fk(forward kenimatic) model. It doesn't matter.
     struct EIKError {
         EIKError(double pl_x, double pl_y, double pl_z, int num): pl_x(pl_x), pl_y(pl_y), pl_z(pl_z), num(num){};
@@ -52,10 +52,10 @@ namespace mFitting {
             double base_plane_width = ratio_w * base_plane_height / ratio_h;
             
             matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
-            matrix_multi(MVP, global_3d[3*num], global_3d[3*num + 1], global_3d[3*num + 2], tmp);
+            matrix_multi(MVP, global_3d[3*num], -global_3d[3*num + 1], -global_3d[3*num + 2], tmp);
             residuals[0] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
-            residuals[1] = T(m_fitting_w2) * (-tmp[1] - tmp2[1]);
-            std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
+            residuals[1] = T(m_fitting_w2) * (tmp[1] - tmp2[1]);
+            //std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
 
             return true;
         }
@@ -128,10 +128,6 @@ namespace mFitting {
         // glm is the col main
         for (int i=0; i < 4; ++i) {
             tmp[i] = T(mvp[0][i]) * x +T(mvp[1][i]) * y + T(mvp[2][i]) * z + T(mvp[3][i]);
-        }
-
-        for (int i=0; i < 4; ++i) {
-            tmp[i] /= tmp[3];
         }
     }
     void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double * angles, double *d) {

@@ -437,14 +437,17 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     if (_is_first_frame) {
         memcpy(joint_angles[1], tmp_angles, sizeof(double) * (joint_num-1)*3);
         memcpy(joint_angles[2], tmp_angles, sizeof(double) * (joint_num-1)*3);
-        // initialize the global_d
+        // initialize the global_d.
         for(int i=0; i < 3; ++i) {
             global_d[i][0] = 0;
             global_d[i][1] = 0;
-            global_d[i][2] = 0;
+            global_d[i][2] = 2;
         }
     }
+    // TODO: It's very strange, the global_d's z never changed! It's not what I think! 
     mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles[0], global_d[0]);
+    
+    //std::cout << "D:(" << global_d[0][0] << ", " << global_d[0][1] << ", " << global_d[0][2] << ")" << std::endl;
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
     // then fitting!
     // after this, you need to fitting it using the energy function.

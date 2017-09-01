@@ -284,7 +284,7 @@ void drawPoint(cv::Mat &img, double * pos) {
 }
 void joints_scale_3d(double * joints3d, std::vector<float> & result) {
     result.clear();
-    int scale_size = 4;
+    int scale_size = 1;
     for (int i=0; i < 3*joint_num; ++i) {
         // here I need to normalize them
         //
