@@ -220,9 +220,9 @@ void mVNectUtils::cal_3dpoints(const double * angles, const double * d, double *
         int from = joint_indics.at(2*i);
         int to = joint_indics.at(2*i+1);
         // Here the "from" point is already known
-        result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * angles[3*i + 0];
-        result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * angles[3*i + 1];
-        result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * angles[3*i + 2];
+        result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 0]));
+        result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 1]));
+        result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 2]));
     }
 }
 
@@ -405,9 +405,9 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     // Get the normalized 3d location of joints
     // TODO: But the 3d points is normalized to [-1, 1]
     for (int i=0; i < joint_num; ++i) {
-        joints_3d[0][3*i + 0] = (joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1400.0;
+        joints_3d[0][3*i + 0] = (joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1600.0;
         joints_3d[0][3*i + 1] = -1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0;
-        joints_3d[0][3*i + 2] = -1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1400.0;
+        joints_3d[0][3*i + 2] = -1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1600.0;
     }
 
     // return the 3D points directory
@@ -423,9 +423,9 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
                 std::pow(joints_3d[0][posa*3 + 0] - joints_3d[0][posb*3 + 0],2) + \
                 std::pow(joints_3d[0][posa*3 + 1] - joints_3d[0][posb*3 + 1],2) + \
                 std::pow(joints_3d[0][posa*3 + 2] - joints_3d[0][posb*3 + 2],2));
-        tmp_angles[3*i + 0] = (joints_3d[0][posa*3 + 0]-joints_3d[0][posb*3 + 0])/bone_length;
-        tmp_angles[3*i + 1] = (joints_3d[0][posa*3 + 1]-joints_3d[0][posb*3 + 1])/bone_length;
-        tmp_angles[3*i + 2] = (joints_3d[0][posa*3 + 2]-joints_3d[0][posb*3 + 2])/bone_length;
+        tmp_angles[3*i + 0] = 180.0 * std::acos((joints_3d[0][posa*3 + 0]-joints_3d[0][posb*3 + 0])/bone_length) / M_PI;
+        tmp_angles[3*i + 1] = 180.0 * std::acos((joints_3d[0][posa*3 + 1]-joints_3d[0][posb*3 + 1])/bone_length) / M_PI;
+        tmp_angles[3*i + 2] = 180.0 * std::acos((joints_3d[0][posa*3 + 2]-joints_3d[0][posb*3 + 2])/bone_length) / M_PI;
     }
     // then give the angles to joint_angles;
     // vector is already deep copy
@@ -441,13 +441,13 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         for(int i=0; i < 3; ++i) {
             global_d[i][0] = 0;
             global_d[i][1] = 0;
-            global_d[i][2] = 2;
+            global_d[i][2] = 1;
         }
     }
     // TODO: It's very strange, the global_d's z never changed! It's not what I think! 
     mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles[0], global_d[0]);
     
-    //std::cout << "D:(" << global_d[0][0] << ", " << global_d[0][1] << ", " << global_d[0][2] << ")" << std::endl;
+    std::cout << "D:(" << global_d[0][0] << ", " << global_d[0][1] << ", " << global_d[0][2] << ")" << std::endl;
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
     // then fitting!
     // after this, you need to fitting it using the energy function.

@@ -82,8 +82,8 @@ int main(void) {
     glm::mat4 MVP = projection*view*model;
 
     mMeshRender meshes(view, projection, &objShader);
-    meshes.addMesh("/home/kaihang/Projects/3DES/model/sphere.ply");
-    meshes.addMesh("/home/kaihang/Projects/3DES/model/cylinder.ply");
+    meshes.addMesh("/home/kaihang/Projects/3DES/model/sphere2.ply");
+    meshes.addMesh("/home/kaihang/Projects/3DES/model/cylinder2.ply");
     // 宽 7 高 4
     std::vector<float> vertexs({
                                 0.1f, 0.7f, 0.4f, 

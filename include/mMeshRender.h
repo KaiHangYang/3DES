@@ -40,6 +40,6 @@ public:
     void render(std::vector<float> vertexs, std::vector<unsigned int> indices, glm::mat4  &model);
 private:
     GLuint VAO;
-    glm::mat4 VP; // VP”≥…‰æÿ’Û
+    glm::mat4 VP; 
     mShader * shader;
 };

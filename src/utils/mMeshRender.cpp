@@ -1,4 +1,4 @@
-#include "mMeshRender.h"
+#include "../../include/mMeshRender.h"
 #include <string.h>
 
 MeshEntry::~MeshEntry() {
