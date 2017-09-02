@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <time.h>
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -441,13 +442,15 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         for(int i=0; i < 3; ++i) {
             global_d[i][0] = 0;
             global_d[i][1] = 0;
-            global_d[i][2] = 1;
+            global_d[i][2] = 0;
         }
     }
     // TODO: It's very strange, the global_d's z never changed! It's not what I think! 
-    mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles[0], global_d[0]);
-    
-    std::cout << "D:(" << global_d[0][0] << ", " << global_d[0][1] << ", " << global_d[0][2] << ")" << std::endl;
+    double start, end;
+    start = clock();
+    mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles, global_d[0]);
+    end = clock();
+    std::cout << "Fitting time:" << (end-start)/CLOCKS_PER_SEC << std::endl;
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
     // then fitting!
     // after this, you need to fitting it using the energy function.

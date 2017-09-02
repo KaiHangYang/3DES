@@ -5,6 +5,7 @@
 #include <vector>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <time.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -121,12 +122,16 @@ int main(void) {
     double tmp[2*joint_num];
     double tmp3d[3*joint_num];
     indics = joint_indics;
+    double start, end;
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         if (!m_cam.read(frame)) {
             continue;
         }
+        start = clock();
         predictor.predict(frame, tmp, tmp3d);
+        end = clock();
+        std::cout << "Predict time(all): " << (end - start)/CLOCKS_PER_SEC << std::endl;
         joints_scale_3d(tmp3d, vertexs);
         drawPoint(frame, tmp);
         cv::flip(frame, frame, 1);
