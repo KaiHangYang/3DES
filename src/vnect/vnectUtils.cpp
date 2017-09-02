@@ -451,6 +451,7 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles, global_d[0]);
     TIME_COUNT_END(Fitting time)
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
+    std::cout << global_d[0][0] << ", " << global_d[0][1] << ", " << global_d[0][2] << std::endl;
     // then fitting!
     // after this, you need to fitting it using the energy function.
     if (_is_first_frame) {
