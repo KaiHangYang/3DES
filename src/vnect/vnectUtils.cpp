@@ -2,10 +2,10 @@
 #include "../../include/vnectJointsInfo.hpp"
 #include "../../include/mDefs.h"
 #include "../../include/mFittingUtils.hpp"
+#include "../../include/mTimeCount.hpp"
 #include <algorithm>
 #include <stdlib.h>
 #include <glm/gtc/matrix_transform.hpp>
-#include <time.h>
 
 mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deploy_path, const std::string &mean_path):mCaffePredictor(model_path, deploy_path, mean_path) {
     _is_tracking = false;
@@ -447,10 +447,9 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     }
     // TODO: It's very strange, the global_d's z never changed! It's not what I think! 
     double start, end;
-    start = clock();
+    TIME_COUNT_START()
     mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles, global_d[0]);
-    end = clock();
-    std::cout << "Fitting time:" << (end-start)/CLOCKS_PER_SEC << std::endl;
+    TIME_COUNT_END(Fitting time)
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
     // then fitting!
     // after this, you need to fitting it using the energy function.

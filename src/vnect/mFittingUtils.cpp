@@ -5,6 +5,8 @@
 #include "../../include/mFittingUtils.hpp"
 #include "../../include/vnectJointsInfo.hpp"
 #include "../../include/mDefs.h"
+#include "../../include/mTimeCount.hpp"
+
 
 namespace mFitting {
     const double m_fitting_w1 = 1;
@@ -48,7 +50,10 @@ namespace mFitting {
         EPROJError(double kl_x, double kl_y, int num, glm::mat4 mvp): kl_x(kl_x), kl_y(kl_y), num(num), MVP(mvp){};
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
             T global_3d[joint_num*3];
+            double start, end;
+
             cal_3djoints(theta, d, global_3d, num);
+
             // Project the point to the image plane
             T tmp[4];
             T tmp2[4];
@@ -185,18 +190,18 @@ namespace mFitting {
     void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double ** angles, double *d) {
         ceres::Problem problem;
         for (int i=0; i < joint_num; ++i) {
-            ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
+            //ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
             ceres::CostFunction * e2_cost_function = EPROJError::Create(2*joints_2d[0][2*i + 1], 2*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
-            ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
-            problem.AddResidualBlock(e1_cost_function, NULL, angles[0], d);
+            //ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
+            //problem.AddResidualBlock(e1_cost_function, NULL, angles[0], d);
             problem.AddResidualBlock(e2_cost_function, NULL, angles[0], d);
-            problem.AddResidualBlock(e4_cost_function, NULL, angles[0], d);
+            //problem.AddResidualBlock(e4_cost_function, NULL, angles[0], d);
             //ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(std::vector<double>({joints_3d[1][3*i], joints_3d[2][3*i]}), std::vector<double>({joints_3d[1][3*i + 1], joints_3d[2][3*i + 1]}), std::vector<double>({joints_3d[1][3*i + 2], joints_3d[2][3*i + 2]}), i);
             //problem.AddResidualBlock(e3_cost_function, NULL, angles, d);
-            if (i != joint_num-1) {
-                ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(angles[0][3*i], angles[0][3*i + 1], angles[0][3*i + 2], i);
-                problem.AddResidualBlock(e3_cost_function, NULL, angles[0], d);
-            }
+            //if (i != joint_num-1) {
+                //ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(angles[0][3*i], angles[0][3*i + 1], angles[0][3*i + 2], i);
+                //problem.AddResidualBlock(e3_cost_function, NULL, angles[0], d);
+            //}
         }
         ceres::Solver::Options option;
         option.linear_solver_type = ceres::DENSE_SCHUR;
@@ -205,6 +210,5 @@ namespace mFitting {
         option.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
         ceres::Solver::Summary summary;
         ceres::Solve(option, &problem, &summary);
-    
     }
 }
