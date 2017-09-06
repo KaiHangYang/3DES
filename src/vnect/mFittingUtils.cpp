@@ -234,7 +234,7 @@ namespace mFitting {
         ceres::Solver::Options option;
         option.linear_solver_type = ceres::DENSE_SCHUR;
         option.minimizer_progress_to_stdout = false;
-        option.max_num_iterations = 12;
+        option.max_num_iterations = 10;
         option.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
         ceres::Solver::Summary summary;
         ceres::Solve(option, &problem, &summary);

@@ -20,7 +20,7 @@
 // VNect test
 #include "include/vnectJointsInfo.hpp"
 #include "include/vnectUtils.hpp"
-
+#include "include/mTimeCount.hpp"
 using namespace glm;
 
 
@@ -125,7 +125,9 @@ int main(void) {
         if (!m_cam.read(frame)) {
             continue;
         }
+        TIME_COUNT_START()
         predictor.predict(frame, tmp, tmp3d);
+        TIME_COUNT_END("All Predict time:")
         joints_scale_3d(tmp3d, vertexs);
         drawPoint(frame, tmp);
         cv::flip(frame, frame, 1);

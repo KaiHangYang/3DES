@@ -8,6 +8,7 @@ const float ratio_h = 9.0;
 const int vnect_resize_width = 560;
 const int vnect_resize_height = 315;
 const float base_vof = 45.0;
+const int one_euro_filter_frequency = 2;
 // In the Demo, the author give the range of the 3D location, I normalized
 // it according it
 const int vnect_3d_range[] = {-700, 700, -800, 800, -700, 700};

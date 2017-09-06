@@ -27,10 +27,18 @@ mVNectUtils::mVNectUtils(const std::string &model_path, const std::string &deplo
         global_d[i] = new double[3];
     }
 
-    // initialize the filters 
+    // initialize the filters
     for (int i=0; i < joint_num; ++i) {
-        mFilters[i] = new one_euro_filter<double> (1, 1.7, 0.3, 1);
-        mFilters_3d[i] = new one_euro_filter<double> (1, 0.8, 0.4, 1);
+        mFilters_3d[3*i] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+        mFilters_3d[3*i + 1] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+        mFilters_3d[3*i + 2] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+        mFilters_global[3*i] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+        mFilters_global[3*i + 1] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+        mFilters_global[3*i + 2] = new one_euro_filter<double> (one_euro_filter_frequency, 0.8, 0.4, 1);
+    }
+    for (int i=0;i < joint_num; ++i) {
+        mFilters[2*i] = new one_euro_filter<double> (one_euro_filter_frequency, 1.7, 0.3, 1);
+        mFilters[2*i + 1] = new one_euro_filter<double> (one_euro_filter_frequency, 1.7, 0.3, 1);
     }
 }
 
@@ -42,9 +50,18 @@ mVNectUtils::~mVNectUtils() {
         delete joints_3d[i];
     }
     for (int i=0; i < joint_num; ++i) {
-        delete mFilters[i];
-        delete mFilters_3d[i];
+        delete mFilters_3d[3*i];
+        delete mFilters_3d[3*i + 1];
+        delete mFilters_3d[3*i + 2];
+        delete mFilters_global[3*i];
+        delete mFilters_global[3*i + 1];
+        delete mFilters_global[3*i + 2];
     }
+    for (int i=0;i < joint_num; ++i) {
+        delete mFilters[2*i];
+        delete mFilters[2*i + 1];
+    }
+
 }
 std::vector<int> mVNectUtils::crop_pos(bool type, int crop_offset) {
     std::vector<int> result({0, 0});
@@ -212,18 +229,18 @@ cv::Mat mVNectUtils::padImage(const cv::Mat &img, cv::Size box_size) {
     return dst;
 }
 void mVNectUtils::cal_3dpoints(const double * angles, const double * d, double * result) {
-    result[3*14] = d[0];
-    result[3*14 + 1] = d[1]; 
-    result[3*14 + 2] = d[2];
+    result[3*14] = (*mFilters_global[3*14])(d[0]);
+    result[3*14 + 1] = (*mFilters_global[3*14 + 1])(d[1]); 
+    result[3*14 + 2] = (*mFilters_global[3*14 + 2])(d[2]);
     
     // Then calculate all the points from the root point.
     for (int i=0; i < joint_num - 1; ++i) {
         int from = joint_indics.at(2*i);
         int to = joint_indics.at(2*i+1);
         // Here the "from" point is already known
-        result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 0]));
-        result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 1]));
-        result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 2]));
+        result[to*3 + 0] = (*mFilters_global[to*3])(result[from*3 + 0] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 0])));
+        result[to*3 + 1] = (*mFilters_global[to*3 + 1])(result[from*3 + 1] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 1])));
+        result[to*3 + 2] = (*mFilters_global[to*3 + 2])(result[from*3 + 2] + joint_bone_length[i] * std::cos(glm::radians(angles[3*i + 2])));
     }
 }
 
@@ -270,10 +287,12 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     std::vector<cv::Mat> input_data;
 
     wrapInputLayer(&input_data);
-
+    TIME_COUNT_START()
     preprocess(tmp, &input_data);
-
+    TIME_COUNT_END("Preprocess time:");
+    TIME_COUNT_START();
     _net->Forward();
+    TIME_COUNT_END("CNN time:");
     // There have been 4 blobs in the output the for confidence map is contained in them.
     std::vector<caffe::Blob<float> *> output_layer = _net->output_blobs();
     // Store the result heatmap and location map
@@ -394,8 +413,8 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         p2[1] = p2[1]/_crop_scale - _pad_offset[0]/_crop_scale + _crop_rect[0]; // col
 
         // TODO: Here, the 2d points is normalized to [-0.5, 0.5]
-        joints_2d[0][2*i + 0] = static_cast<double>(p2[0]) / vnect_resize_height - 0.5; // y
-        joints_2d[0][2*i + 1] = static_cast<double>(p2[1]) / vnect_resize_width - 0.5; // x 
+        joints_2d[0][2*i + 0] = (*mFilters[2 * i + 0])(static_cast<double>(p2[0]) / vnect_resize_height - 0.5, _time_stamp); // y
+        joints_2d[0][2*i + 1] = (*mFilters[2 * i + 1])(static_cast<double>(p2[1]) / vnect_resize_width - 0.5, _time_stamp); // x 
         joints_3d[0][3*i + 0] = p3[0];
         joints_3d[0][3*i + 1] = p3[1];
         joints_3d[0][3*i + 2] = p3[2];
@@ -406,10 +425,11 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     // Get the normalized 3d location of joints
     // TODO: But the 3d points is normalized to [-1, 1]
     for (int i=0; i < joint_num; ++i) {
-        joints_3d[0][3*i + 0] = (joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1600.0;
-        joints_3d[0][3*i + 1] = -1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0;
-        joints_3d[0][3*i + 2] = -1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1600.0;
+        joints_3d[0][3*i + 0] = (*mFilters_3d[i*3 + 0])((joints_3d[0][3*i + 0] - joints_3d[0][14 * 3 + 0])/1600.0, _time_stamp);
+        joints_3d[0][3*i + 1] = (*mFilters_3d[i*3 + 1])(-1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0, _time_stamp);
+        joints_3d[0][3*i + 2] = (*mFilters_3d[i*3 + 2])(-1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1600.0, _time_stamp);
     }
+    
 
     // return the 3D points directory
     memcpy(joint3d, joints_3d[0], sizeof(double)*3*joint_num);
