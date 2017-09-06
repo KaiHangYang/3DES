@@ -9,10 +9,14 @@
 
 
 namespace mFitting {
+    // This may be implemented by lossfunction
     const double m_fitting_w1 = 1;
     const double m_fitting_w2 = 44;
     const double m_fitting_w3 = 0.07;
     const double m_fitting_w4 = 0.11;
+    
+
+    // To minimize the computing time
     const int point_to_bone_start[] = {8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 4, 4, 4, -1, 8, 8, 8, 8, 0, 4}; // 20
     const int point_to_bone_end[] = {19, 9, 10, 11, 12, 14, 15, 16, 0, 1, 2, 4, 5, 6, -1, 8, 18, 13, 17, 3, 7};
     const int point_to_bone_mid1[] = {9, -1, -1, -1, -1, 9, 9, 9, -1, -1, -1, -1, -1, -1, -1, -1, 9, -1, 9, -1, -1};
@@ -63,6 +67,8 @@ namespace mFitting {
             matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
             // because of the pin hole model
             matrix_multi(MVP, global_3d[3*num], -global_3d[3*num + 1], global_3d[3*num + 2], tmp);
+
+            // I think the jacobian is just 1
             residuals[0] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
             residuals[1] = T(m_fitting_w2) * (tmp[1] - tmp2[1]);
             //std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
