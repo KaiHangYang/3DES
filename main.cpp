@@ -60,7 +60,6 @@ int main(void) {
     mVNectUtils predictor("./caffemodel/vnect_model.caffemodel", "./caffemodel/vnect_net.prototxt");
 
     if ((window = InitWindow()) == nullptr) {
-        system("pause");
         return -1;
     }
 
@@ -70,7 +69,6 @@ int main(void) {
 
     mCamera mcam(wndWidth, wndHeight, &camShader, false);
     if (false == mcam.init()) {
-        system("pause");
         return -1;
     }
     glm::mat4 projection = glm::perspective(glm::radians(base_vof), ratio_w / ratio_h, 0.1f, 100.0f);

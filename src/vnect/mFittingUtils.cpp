@@ -15,6 +15,8 @@ namespace mFitting {
     const double m_fitting_w3 = 0.07;
     const double m_fitting_w4 = 0.11;
     
+    double base_plane_height =  5.0 * glm::tan(glm::radians(base_vof/2));
+    double base_plane_width = ratio_w * base_plane_height / ratio_h;
 
     // To minimize the computing time
     const int point_to_bone_start[] = {8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 4, 4, 4, -1, 8, 8, 8, 8, 0, 4}; // 20
@@ -51,37 +53,28 @@ namespace mFitting {
         int num;// the number of the point 
     };
     struct EPROJError {
-        EPROJError(double kl_x, double kl_y, int num, glm::mat4 mvp): kl_x(kl_x), kl_y(kl_y), num(num), MVP(mvp){};
+        EPROJError(double * joints_2d, glm::mat4 mvp): joints_2d(joints_2d), MVP(mvp){};
         template<typename T> bool operator() (const T * const theta, const T * const d, T * residuals) const {
             T global_3d[joint_num*3];
-            double start, end;
-
-            cal_3djoints(theta, d, global_3d, num);
-
+            cal_3djoints(theta, d, global_3d, -1);
             // Project the point to the image plane
             T tmp[4];
             T tmp2[4];
-            double base_plane_height =  5.0 * glm::tan(glm::radians(base_vof/2));
-            double base_plane_width = ratio_w * base_plane_height / ratio_h;
-            
-            matrix_multi(MVP, T(kl_x * base_plane_width), T(kl_y * base_plane_height), T(0), tmp2);
-            // because of the pin hole model
-            matrix_multi(MVP, global_3d[3*num], -global_3d[3*num + 1], global_3d[3*num + 2], tmp);
-
-            // I think the jacobian is just 1
-            residuals[0] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
-            residuals[1] = T(m_fitting_w2) * (tmp[1] - tmp2[1]);
+            for (int i=0; i < joint_num; ++i) {
+                matrix_multi(MVP, T(2 * joints_2d[2*i + 1] * base_plane_width), T(2 * joints_2d[2*i] * base_plane_height), T(0), tmp2);
+                // because of the pin hole model
+                matrix_multi(MVP, global_3d[3*i], -global_3d[3*i + 1], global_3d[3*i + 2], tmp);
+                
+                residuals[2*i] = T(m_fitting_w2) * (tmp[0] - tmp2[0]);
+                residuals[2*i + 1] = T(m_fitting_w2) * (tmp[1] - tmp2[1]);
+            }
             //std::cout << "X: " << tmp[0] << ", " << tmp2[0] << "\tY: " << tmp[1] << ", " << tmp2[1] << "\tZ: " << tmp[2] << ", " << tmp2[2] << "\tW: " << tmp[1] << ", " << tmp2[1] << std::endl;
-
             return true;
         }
-
-        static ceres::CostFunction * Create(const double kl_x, const double kl_y, int num, glm::mat4 mvp) {
-            return (new ceres::AutoDiffCostFunction<EPROJError, 2, joint_num*3, 3>(new EPROJError(kl_x, kl_y, num, mvp)));
+        static ceres::CostFunction * Create(double * joints_2d, glm::mat4 mvp) {
+            return (new ceres::AutoDiffCostFunction<EPROJError, 2*joint_num, joint_num*3, 3>(new EPROJError(joints_2d, mvp)));
         }
-        double kl_x;
-        double kl_y;
-        int num;
+        double * joints_2d;
         glm::mat4 MVP;
     };
     //// Punish the accelation of the change
@@ -142,9 +135,9 @@ namespace mFitting {
                 int from = joint_indics.at(2*i);
                 int to = joint_indics.at(2*i+1);
                 // Here the "from" point is already known
-                result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]/T(180));
-                result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]/T(180));
-                result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]/T(180));
+                result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]*T(0.00555556));
+                result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]*T(0.00555556));
+                result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]*T(0.00555556));
             }
         }
         else if (mnum != 14) {
@@ -158,9 +151,9 @@ namespace mFitting {
                     int from = joint_indics.at(2*i);
                     int to = joint_indics.at(2*i+1);
                     // Here the "from" point is already known
-                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]/T(180));
-                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]/T(180));
-                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]/T(180));
+                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]*T(0.00555556));
+                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]*T(0.00555556));
+                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]*T(0.00555556));
                 }
             }
             else {
@@ -168,17 +161,17 @@ namespace mFitting {
                     int from = joint_indics.at(2*i);
                     int to = joint_indics.at(2*i+1);
                     // Here the "from" point is already known
-                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]/T(180));
-                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]/T(180));
-                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]/T(180));
+                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]*T(0.00555556));
+                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]*T(0.00555556));
+                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]*T(0.00555556));
                 }
                 for (int i=mid2; i <= end; ++i) {
                     int from = joint_indics.at(2*i);
                     int to = joint_indics.at(2*i+1);
                     // Here the "from" point is already known
-                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]/T(180));
-                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]/T(180));
-                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]/T(180));
+                    result[to*3 + 0] = result[from*3 + 0] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 0]*T(0.00555556));
+                    result[to*3 + 1] = result[from*3 + 1] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 1]*T(0.00555556));
+                    result[to*3 + 2] = result[from*3 + 2] + joint_bone_length[i] * ceres::cos(T(M_PI) * angles[3*i + 2]*T(0.00555556));
                 }
             }
         }
@@ -195,9 +188,10 @@ namespace mFitting {
     }
     void fitting(double ** joints_2d, double ** joints_3d, glm::mat4 &mvp, double ** angles, double *d) {
         ceres::Problem problem;
-        for (int i=0; i < joint_num; ++i) {
+        //for (int i=0; i < joint_num; ++i) {
             //ceres::CostFunction * e1_cost_function = EIKError::Create(joints_3d[0][3*i], joints_3d[0][3*i + 1], joints_3d[0][3*i + 2], i);
-            ceres::CostFunction * e2_cost_function = EPROJError::Create(2*joints_2d[0][2*i + 1], 2*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
+            //ceres::CostFunction * e2_cost_function = EPROJError::Create(2*joints_2d[0][2*i + 1], 2*joints_2d[0][2*i + 0], i, mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
+            ceres::CostFunction * e2_cost_function = EPROJError::Create(joints_2d[0], mvp); // cause the 2d is y, x and it's normalized to [-0.5, 0.5]
             //ceres::CostFunction * e4_cost_function = EDEPTHError::Create(joints_3d[1][3*i + 2], i);
             //problem.AddResidualBlock(e1_cost_function, NULL, angles[0], d);
             problem.AddResidualBlock(e2_cost_function, NULL, angles[0], d);
@@ -208,7 +202,7 @@ namespace mFitting {
                 //ceres::CostFunction * e3_cost_function = ESMOOTHError::Create(angles[0][3*i], angles[0][3*i + 1], angles[0][3*i + 2], i);
                 //problem.AddResidualBlock(e3_cost_function, NULL, angles[0], d);
             //}
-        }
+        //}
         ceres::Solver::Options option;
         option.linear_solver_type = ceres::DENSE_SCHUR;
         option.minimizer_progress_to_stdout = false;
