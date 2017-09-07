@@ -52,7 +52,7 @@ int main(void) {
     // init glfw 
     GLFWwindow * window;
     
-    cv::VideoCapture m_cam = cv::VideoCapture("./imgtest/a.mp4");
+    cv::VideoCapture m_cam = cv::VideoCapture("./imgtest/b.mp4");
     cv::Mat frame;
     m_cam.set(CV_CAP_PROP_FRAME_WIDTH, wndWidth);
     m_cam.set(CV_CAP_PROP_FRAME_HEIGHT, wndHeight);
@@ -125,9 +125,7 @@ int main(void) {
         if (!m_cam.read(frame)) {
             continue;
         }
-        TIME_COUNT_START()
         predictor.predict(frame, tmp, tmp3d);
-        TIME_COUNT_END("All Predict time:")
         joints_scale_3d(tmp3d, vertexs);
         drawPoint(frame, tmp);
         cv::flip(frame, frame, 1);

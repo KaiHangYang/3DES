@@ -281,18 +281,13 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         
         // when tracking the input_size is the crop_size
     }
-    
     _net->Reshape();
 
     std::vector<cv::Mat> input_data;
-
     wrapInputLayer(&input_data);
-    TIME_COUNT_START()
     preprocess(tmp, &input_data);
-    TIME_COUNT_END("Preprocess time:");
-    TIME_COUNT_START();
     _net->Forward();
-    TIME_COUNT_END("CNN time:");
+    
     // There have been 4 blobs in the output the for confidence map is contained in them.
     std::vector<caffe::Blob<float> *> output_layer = _net->output_blobs();
     // Store the result heatmap and location map
@@ -306,6 +301,8 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
     //std::cout << "hm_size:"<< hm_size.width << "," << hm_size.height << std::endl;
     // Get all the result, result[0] -> heatmap, result[1] -> x_location_map, result[2] -> y_location_map, result[3] -> z_location_map
     for (int i=0; i < output_layer.size(); ++i) {
+        // For the same frame, when first call cpu_data(). The Data maybe copy to the cpu, 
+        // and the time consumption is pretty high(GTX660 Ti i5 4 16Gb,  0.085ms)
         const float * begin = output_layer[i]->cpu_data();
         // get all the output data. The num is equal to the image you input 
         //const float * end = begin + o_width * o_height * o_channels * o_num;
@@ -316,6 +313,7 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
             map_elm.push_back(channel_elm);
         }
         result.push_back(map_elm);
+
     }
     for (int i = 0; i < o_num; ++i) {
         // Cause the image size in every scale is not equal, we need to resize the image
@@ -338,6 +336,7 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
             }
         }
     }
+
     // Then I need to average the result, if the number of scale is not one.
     // 3 scales = 3 x 21 channel heatmap(cv::Mat)
     std::vector<cv::Mat> heatmaps;
@@ -429,7 +428,6 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
         joints_3d[0][3*i + 1] = (*mFilters_3d[i*3 + 1])(-1*(joints_3d[0][3*i + 1] - joints_3d[0][14 * 3 + 1])/1600.0, _time_stamp);
         joints_3d[0][3*i + 2] = (*mFilters_3d[i*3 + 2])(-1*(joints_3d[0][3*i + 2] - joints_3d[0][14 * 3 + 2])/1600.0, _time_stamp);
     }
-    
 
     // return the 3D points directory
     memcpy(joint3d, joints_3d[0], sizeof(double)*3*joint_num);
@@ -465,12 +463,10 @@ void mVNectUtils::predict(const cv::Mat &img, double * joint2d, double * joint3d
             global_d[i][2] = 0;
         }
     }
-    // TODO: It's very strange, the global_d's z never changed! It's not what I think! 
-    double start, end;
-    TIME_COUNT_START()
+
     mFitting::fitting(joints_2d, joints_3d, mvp, joint_angles, global_d[0]);
-    TIME_COUNT_END(Fitting time)
     cal_3dpoints(joint_angles[0], global_d[0], joint3d);
+    
     // then fitting!
     // after this, you need to fitting it using the energy function.
     if (_is_first_frame) {
