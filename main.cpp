@@ -52,7 +52,7 @@ int main(void) {
     // init glfw 
     GLFWwindow * window;
     
-    cv::VideoCapture m_cam = cv::VideoCapture("./imgtest/b.mp4");
+    cv::VideoCapture m_cam = cv::VideoCapture("./imgtest/c.mp4");
     cv::Mat frame;
     m_cam.set(CV_CAP_PROP_FRAME_WIDTH, wndWidth);
     m_cam.set(CV_CAP_PROP_FRAME_HEIGHT, wndHeight);
@@ -119,7 +119,10 @@ int main(void) {
     double tmp[2*joint_num];
     double tmp3d[3*joint_num];
     indics = joint_indics;
-    double start, end;
+    // just for frame export
+    char pixel_data[3*wndWidth*wndHeight];
+    int f_num = 0;
+    char f_path[200];
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         if (!m_cam.read(frame)) {
@@ -175,6 +178,18 @@ int main(void) {
             curModel = model;
         }
         meshes.render(vertexs, indics, curModel);
+        
+        
+        // Here I can get the frame out! 
+        glReadBuffer(GL_FRONT);
+        glReadPixels(0, 0, wndWidth, wndHeight, GL_BGR, GL_UNSIGNED_BYTE, pixel_data);
+        
+        cv::Mat img(cv::Size(wndWidth, wndHeight), CV_8UC3, &pixel_data[0]);
+        cv::flip(img, img, 0);
+        
+        sprintf(f_path, "/home/kaihang/Desktop/demo_show/%d.jpg", f_num++);
+        
+        cv::imwrite(f_path, img);
         
         glfwSwapBuffers(window);
         glfwPollEvents();
